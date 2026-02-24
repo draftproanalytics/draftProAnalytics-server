@@ -16,11 +16,11 @@ export class EspnScheduleClient {
     const { data } = await axios.get(listUrl);
     const items = data.items ?? [];
 
-    const playoffRoundFromWeek = (w: number): 'WILD_CARD' | 'DIVISIONAL' | 'CONFERENCE' | 'SUPER_BOWL' | null => {
-      if (w === 1) return 'WILD_CARD'
+    const playoffRoundFromWeek = (w: number): 'WILDCARD' | 'DIVISIONAL' | 'CONFERENCE' | 'SUPERBOWL' | null => {
+      if (w === 1) return 'WILDCARD'
       if (w === 2) return 'DIVISIONAL'
       if (w === 3) return 'CONFERENCE'
-      if (w === 4) return 'SUPER_BOWL'
+      if (w === 4) return 'SUPERBOWL'
       return null
     }
 

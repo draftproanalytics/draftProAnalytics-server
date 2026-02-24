@@ -1,6 +1,6 @@
 // src/infrastructure/espn/scoreboardClient.ts
 import axios from 'axios'
-import pRetry, { AbortError } from 'p-retry'
+import { retry, RetryAbortError } from "@/utils/retry";
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
 export type SeasonType = 1 | 2 | 3 // 1=pre, 2=reg, 3=post
@@ -40,7 +40,7 @@ async function httpGet(params: Record<string, string | number | undefined>) {
   if (res.status >= 200 && res.status < 300) return res.data
   const detail = (res.data && (res.data.detail || res.data.message)) || `HTTP ${res.status}`
   if (res.status >= 500) throw new Error(`ESPN 5xx: ${detail}`)
-  throw new AbortError(`ESPN non-2xx: ${detail}`)
+  throw new RetryAbortError(`ESPN non-2xx: ${detail}`)
 }
 
 /** Canonical entry point */
@@ -62,12 +62,12 @@ export async function fetchScoreboard(params: ScoreboardParams) {
 
   let raw: any
   try {
-    raw = await pRetry(() => httpGet(q), { retries: 2, factor: 2, minTimeout: 500 })
+    raw = await retry(() => httpGet(q), { retries: 2, factor: 2, minTimeout: 500 })
   } catch (e) {
     // fallback to computed date if week-based fetch fails
     if (!params.date && params.year != null && params.seasonType != null && params.week != null) {
       const fallbackDate = weekToSunday(params.year, params.week, params.seasonType)
-      raw = await pRetry(() => httpGet({ dates: fallbackDate }), { retries: 2, factor: 2, minTimeout: 500 })
+      raw = await retry(() => httpGet({ dates: fallbackDate }), { retries: 2, factor: 2, minTimeout: 500 })
     } else {
       throw e
     }

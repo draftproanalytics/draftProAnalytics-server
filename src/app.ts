@@ -9,14 +9,11 @@ import { registerAccessControlModule } from "@/modules/accessControl/infrastruct
 import { apiRoutes } from './presentation/routes';
 import { errorHandler } from './presentation/middleware/errorHandler';
 import { prisma } from "@/infrastructure/database/prisma";
-import { buildAdminAccessRouter } from './modules/accessControl/presentation/routes/adminAccess.routes';
-import { buildAccessRoutes } from "@/modules/accessControl/presentation/routes/access.routes";
 
 const app = express();
 
 const db = prisma;
 registerAccessControlModule();
-
 
 
 // Security middleware
@@ -32,8 +29,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // API routes
 app.use(`/api`, apiRoutes);
-app.use("/api/access", buildAccessRoutes(db));
-app.use("/api/admin/access", buildAdminAccessRouter(db));
+
+
 // 404 handler — MUST come before errorHandler
 app.use('*', (req, res, next) => {
   const err: any = new Error('Route not found');
@@ -60,4 +57,5 @@ app._router.stack.forEach((middleware: any) => {
 console.log('🔍 All routes registered. Testing endpoint...');
 console.log('🧪 Test: curl http://localhost:5000/api/draftpicks/relations/team/1/year/2025');
 
+module.exports = app;
 export { app };

@@ -24,6 +24,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true,
+    "typeRoots": ["./node_modules/@types", "./src/shared/types"],
     "baseUrl": "./",
     "types": ["node"],
     "paths": {
@@ -31,7 +32,10 @@
     }
   },
   "include": [
-    "src/**/*", "__tests__" ],
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "__tests__"
+  ],
   "exclude": [
     "node_modules",
     "dist",
@@ -40,6 +44,7 @@
     "**/*.spec.ts"
   ],
   "ts-node": {
-    "require": ["tsconfig-paths/register"]
+    "require": ["tsconfig-paths/register"],
+    "files": true
   }
 }

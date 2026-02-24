@@ -32,7 +32,7 @@ export class LoginUseCase {
     // 3) Compare password
     const ok = await this.hasher.compare(password, person.passwordHash);
     if (!ok) {
-      throw new Error("Invalid credentials");
+      throw new Error("Invalid credentials password: "+password+" hash: "+person.passwordHash);
     }
 
     // 4) Issue access token WITH activeRid embedded

@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 model AppSetting {
@@ -260,29 +261,35 @@ model Schedule {
 }
 
 model Team {
-  id                                                           Int                   @id @default(autoincrement())
-  name                                                         String                @unique(map: "uq_team_name") @db.VarChar(45)
-  city                                                         String?               @db.VarChar(45)
-  state                                                        String?               @db.VarChar(45)
-  conference                                                   String?               @db.VarChar(35)
-  division                                                     String?               @db.VarChar(20)
-  stadium                                                      String?               @db.VarChar(45)
+  id                                                           Int                    @id @default(autoincrement())
+  name                                                         String                 @unique(map: "uq_team_name") @db.VarChar(45)
+  city                                                         String?                @db.VarChar(45)
+  state                                                        String?                @db.VarChar(45)
+  conference                                                   String?                @db.VarChar(35)
+  division                                                     String?                @db.VarChar(20)
+  stadium                                                      String?                @db.VarChar(45)
   scheduleId                                                   Int?
-  abbreviation                                                 String?               @unique(map: "abbreviation") @db.VarChar(255)
-  espnTeamId                                                   Int?                  @unique(map: "espnTeamId")
+  abbreviation                                                 String?                @unique(map: "abbreviation") @db.VarChar(255)
+  espnTeamId                                                   Int?                   @unique(map: "espnTeamId")
   DraftOrderEntry                                              DraftOrderEntry[]
   DraftPick                                                    DraftPick[]
-  DraftSimulationPick_DraftSimulationPick_currentTeamIdToTeam  DraftSimulationPick[] @relation("DraftSimulationPick_currentTeamIdToTeam")
-  DraftSimulationPick_DraftSimulationPick_originalTeamIdToTeam DraftSimulationPick[] @relation("DraftSimulationPick_originalTeamIdToTeam")
+  DraftSimulationPick_DraftSimulationPick_currentTeamIdToTeam  DraftSimulationPick[]  @relation("DraftSimulationPick_currentTeamIdToTeam")
+  DraftSimulationPick_DraftSimulationPick_originalTeamIdToTeam DraftSimulationPick[]  @relation("DraftSimulationPick_originalTeamIdToTeam")
   DraftSimulationTeam                                          DraftSimulationTeam[]
-  Game_Game_homeTeamIdToTeam                                   Game[]                @relation("Game_homeTeamIdToTeam")
-  Game_Game_awayTeamIdToTeam                                   Game[]                @relation("Game_awayTeamIdToTeam")
+  Game_Game_homeTeamIdToTeam                                   Game[]                 @relation("Game_homeTeamIdToTeam")
+  Game_Game_awayTeamIdToTeam                                   Game[]                 @relation("Game_awayTeamIdToTeam")
   PlayerTeam                                                   PlayerTeam[]
   PostSeasonResult                                             PostSeasonResult[]
   Prospect                                                     Prospect[]
-  Schedule_Schedule_teamIdToTeam                               Schedule[]            @relation("Schedule_teamIdToTeam")
-  Schedule_Schedule_oppTeamIdToTeam                            Schedule[]            @relation("Schedule_oppTeamIdToTeam")
+  Schedule_Schedule_teamIdToTeam                               Schedule[]             @relation("Schedule_teamIdToTeam")
+  Schedule_Schedule_oppTeamIdToTeam                            Schedule[]             @relation("Schedule_oppTeamIdToTeam")
   TeamNeed                                                     TeamNeed[]
+  draftPredictions                                             draftPredictions[]
+  historicalDraftPicks                                         historicalDraftPicks[]
+  liveDraftPicks_liveDraftPicks_originalTeamIdToTeam           liveDraftPicks[]       @relation("liveDraftPicks_originalTeamIdToTeam")
+  liveDraftPicks_liveDraftPicks_teamIdToTeam                   liveDraftPicks[]       @relation("liveDraftPicks_teamIdToTeam")
+  rosterPlayers                                                rosterPlayers[]
+  teamDraftPatterns                                            teamDraftPatterns?
 }
 
 model TeamNeed {
@@ -853,6 +860,162 @@ model RolePermission {
   @@index([domainId], map: "fk_roleperm_domain")
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model draftPredictions {
+  id                      String                           @id @default(dbgenerated("(uuid())")) @db.VarChar(36)
+  teamId                  Int
+  year                    Int
+  round                   Int
+  pick                    Int
+  predictedPosition       String                           @db.VarChar(10)
+  probability             Decimal                          @db.Decimal(5, 2)
+  reasoning               String                           @db.Text
+  teamNeedScore           Decimal                          @db.Decimal(5, 2)
+  historicalTendencyScore Decimal                          @db.Decimal(5, 2)
+  confidenceLevel         draftPredictions_confidenceLevel
+  createdAt               DateTime                         @default(now()) @db.DateTime(0)
+  Team                    Team                             @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_draftPredictions_teamId")
+
+  @@unique([teamId, year, round, pick, predictedPosition], map: "uk_draftPredictions_teamYearRoundPickPosition")
+  @@index([teamId, year], map: "idx_draftPredictions_teamYear")
+  @@index([year, round, pick], map: "idx_draftPredictions_yearRoundPick")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model historicalDraftPicks {
+  id            String                           @id @default(dbgenerated("(uuid())")) @db.VarChar(36)
+  year          Int
+  round         Int
+  pick          Int
+  overallPick   Int
+  teamId        Int
+  playerName    String                           @db.VarChar(255)
+  position      String                           @db.VarChar(10)
+  positionGroup String                           @db.VarChar(10)
+  college       String?                          @db.VarChar(255)
+  careerGrade   historicalDraftPicks_careerGrade @default(TBD)
+  yearsWithTeam Int                              @default(0)
+  proBowls      Int                              @default(0)
+  allPros       Int                              @default(0)
+  gamesPlayed   Int                              @default(0)
+  gamesStarted  Int                              @default(0)
+  notes         String?                          @db.Text
+  createdAt     DateTime                         @default(now()) @db.DateTime(0)
+  updatedAt     DateTime                         @default(now()) @db.DateTime(0)
+  Team          Team                             @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_historicalDraftPicks_teamId")
+
+  @@unique([year, round, pick], map: "uk_historicalDraftPicks_yearRoundPick")
+  @@index([careerGrade], map: "idx_historicalDraftPicks_careerGrade")
+  @@index([positionGroup], map: "idx_historicalDraftPicks_positionGroup")
+  @@index([teamId, year], map: "idx_historicalDraftPicks_teamYear")
+  @@index([year], map: "idx_historicalDraftPicks_year")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model liveDraftPicks {
+  id                                       String                @id @default(dbgenerated("(uuid())")) @db.VarChar(36)
+  year                                     Int
+  round                                    Int
+  pick                                     Int
+  overallPick                              Int
+  teamId                                   Int
+  originalTeamId                           Int
+  status                                   liveDraftPicks_status @default(upcoming)
+  playerName                               String?               @db.VarChar(255)
+  position                                 String?               @db.VarChar(10)
+  college                                  String?               @db.VarChar(255)
+  consensusRank                            Int?
+  gradeValue                               String?               @db.VarChar(2)
+  gradeScore                               Decimal?              @db.Decimal(5, 2)
+  expectedSuccess                          Decimal?              @db.Decimal(5, 2)
+  pickedAt                                 DateTime?             @db.DateTime(0)
+  createdAt                                DateTime              @default(now()) @db.DateTime(0)
+  updatedAt                                DateTime              @default(now()) @db.DateTime(0)
+  Team_liveDraftPicks_originalTeamIdToTeam Team                  @relation("liveDraftPicks_originalTeamIdToTeam", fields: [originalTeamId], references: [id], onUpdate: NoAction, map: "fk_liveDraftPicks_originalTeamId")
+  Team_liveDraftPicks_teamIdToTeam         Team                  @relation("liveDraftPicks_teamIdToTeam", fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_liveDraftPicks_teamId")
+
+  @@unique([year, round, pick], map: "uk_liveDraftPicks_yearRoundPick")
+  @@index([originalTeamId], map: "fk_liveDraftPicks_originalTeamId")
+  @@index([teamId], map: "fk_liveDraftPicks_teamId")
+  @@index([pickedAt], map: "idx_liveDraftPicks_pickedAt")
+  @@index([status], map: "idx_liveDraftPicks_status")
+  @@index([year, status], map: "idx_liveDraftPicks_yearStatus")
+  @@index([year, teamId], map: "idx_liveDraftPicks_yearTeam")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model positionGroupMetrics {
+  id                String                               @id @default(dbgenerated("(uuid())")) @db.VarChar(36)
+  patternId         String                               @db.VarChar(36)
+  position          String                               @db.VarChar(10)
+  totalPicks        Int                                  @default(0)
+  successfulPicks   Int                                  @default(0)
+  successRate       Decimal                              @default(0.00) @db.Decimal(5, 2)
+  averageRound      Decimal                              @default(0.0) @db.Decimal(3, 1)
+  preferredRounds   Json
+  competencyLevel   positionGroupMetrics_competencyLevel
+  systemFitBias     Boolean                              @default(false)
+  recentDrafts      Int                                  @default(0)
+  createdAt         DateTime                             @default(now()) @db.DateTime(0)
+  updatedAt         DateTime                             @default(now()) @db.DateTime(0)
+  teamDraftPatterns teamDraftPatterns                    @relation(fields: [patternId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_positionGroupMetrics_patternId")
+
+  @@unique([patternId, position], map: "uk_positionGroupMetrics_patternPosition")
+  @@index([competencyLevel], map: "idx_positionGroupMetrics_competency")
+  @@index([patternId], map: "idx_positionGroupMetrics_patternId")
+  @@index([position], map: "idx_positionGroupMetrics_position")
+  @@index([systemFitBias], map: "idx_positionGroupMetrics_systemBias")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model rosterPlayers {
+  id                     String   @id @default(dbgenerated("(uuid())")) @db.VarChar(36)
+  teamId                 Int
+  playerId               String?  @db.VarChar(36)
+  playerName             String   @db.VarChar(255)
+  position               String   @db.VarChar(10)
+  positionGroup          String   @db.VarChar(10)
+  depthChartOrder        Int      @default(99)
+  age                    Int
+  yearsExperience        Int
+  performanceGrade       Decimal  @default(50.00) @db.Decimal(5, 2)
+  isStarter              Boolean  @default(false)
+  contractYearsRemaining Int      @default(0)
+  injuryStatus           String?  @db.VarChar(50)
+  notes                  String?  @db.Text
+  createdAt              DateTime @default(now()) @db.DateTime(0)
+  updatedAt              DateTime @default(now()) @db.DateTime(0)
+  Team                   Team     @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_rosterPlayers_teamId")
+
+  @@unique([teamId, playerId], map: "uk_rosterPlayers_teamPlayer")
+  @@index([teamId, positionGroup, depthChartOrder], map: "idx_rosterPlayers_depthChart")
+  @@index([teamId, positionGroup], map: "idx_rosterPlayers_teamPosition")
+  @@index([teamId, isStarter], map: "idx_rosterPlayers_teamStarter")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model teamDraftPatterns {
+  id                   String                 @id @default(dbgenerated("(uuid())")) @db.VarChar(36)
+  teamId               Int                    @unique(map: "teamId")
+  regimeStartYear      Int
+  regimeEndYear        Int?
+  generalManager       String                 @db.VarChar(255)
+  headCoach            String                 @db.VarChar(255)
+  totalPicks           Int                    @default(0)
+  successfulPicks      Int                    @default(0)
+  overallSuccessRate   Decimal                @default(0.00) @db.Decimal(5, 2)
+  lastAnalyzedAt       DateTime               @default(now()) @db.DateTime(0)
+  createdAt            DateTime               @default(now()) @db.DateTime(0)
+  updatedAt            DateTime               @default(now()) @db.DateTime(0)
+  positionGroupMetrics positionGroupMetrics[]
+  Team                 Team                   @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_teamDraftPatterns_teamId")
+
+  @@index([generalManager], map: "idx_teamDraftPatterns_generalManager")
+  @@index([headCoach], map: "idx_teamDraftPatterns_headCoach")
+  @@index([regimeStartYear, regimeEndYear], map: "idx_teamDraftPatterns_regimeYears")
+  @@index([teamId], map: "idx_teamDraftPatterns_teamId")
+}
+
 enum data_processing_jobs_job_type {
   PLAYER_SYNC
   TEAM_SYNC
@@ -975,4 +1138,33 @@ enum Game_playoffConference {
 enum DraftOrderSnapshot_mode {
   current
   projection
+}
+
+enum liveDraftPicks_status {
+  upcoming
+  current
+  completed
+  traded
+}
+
+enum positionGroupMetrics_competencyLevel {
+  Elite
+  Good
+  Average
+  Poor
+  Terrible
+}
+
+enum draftPredictions_confidenceLevel {
+  High
+  Medium
+  Low
+}
+
+enum historicalDraftPicks_careerGrade {
+  Elite
+  Starter
+  Backup
+  Bust
+  TBD
 }

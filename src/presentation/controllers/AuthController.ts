@@ -1,29 +1,25 @@
 // src/presentation/controllers/AuthController.ts
-import { Request, Response } from "express";
+import { Request, Response } from 'express';
 import {
   verifyEmailUseCase,
-  loginUseCase,
   refreshTokenUseCase,
-  logoutUseCase,
   forgotPasswordUseCase,
   resetPasswordUseCase,
-} from "@/infrastructure/dependencies";
-import { RegisterInputDTO } from "@/application/auth/register/RegisterDTO";
-import { RegisterUseCase } from '@/application/auth/register/RegisterUseCase';
-import { LoginUseCase } from "@/application/auth/login/LoginUseCase";
+  registerUseCase,
+  loginUseCase,
+  loginWithAppleUseCase,
+  loginWithGoogleUseCase,
+  logoutUseCase,
+} from '@/infrastructure/dependencies';
+import { RegisterInputDTO } from '@/application/auth/register/RegisterDTO';
 
 export class AuthController {
-  
-  constructor(
-    private readonly registerUseCase: RegisterUseCase,
-    private readonly loginUseCase: LoginUseCase
-  ) {}
 
   async login(req: Request, res: Response): Promise<void> {
     try {
       const { userName, password } = req.body as { userName: string; password: string };
 
-      const result = await this.loginUseCase.execute({ userName, password });
+      const result = await loginUseCase.execute({ userName, password });
 
       //res.status(200).json(result);
       // right now LoginResponseDTO = { accessToken, personId, userName }
@@ -51,7 +47,7 @@ export class AuthController {
         return;
       }
 
-      const result = await this.registerUseCase.execute(input);
+      const result = await registerUseCase.execute(input);
       res.status(201).json(result);
     } catch (err: unknown) {
       const e = err as Error;
@@ -64,7 +60,7 @@ export class AuthController {
     try {
       const { token } = req.params;
       await verifyEmailUseCase.execute(token);
-      res.json({ message: "Email verified successfully" });
+      res.json({ message: 'Email verified successfully' });
     } catch (err: unknown) {
       const e = err as Error;
       res.status(400).json({ error: e.message });
@@ -77,17 +73,17 @@ export class AuthController {
       const personId = Number(req.body.personId);
 
       if (!refreshToken) {
-        res.status(400).json({ error: "Missing refresh token" });
+        res.status(400).json({ error: 'Missing refresh token' });
         return;
       }
 
       const result = await refreshTokenUseCase.execute(refreshToken, personId);
 
       // Rotate cookie
-      res.cookie("refreshToken", result.refreshToken, {
+      res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
         maxAge: 30 * 24 * 60 * 60 * 1000,
       });
 
@@ -98,32 +94,29 @@ export class AuthController {
     }
   }
 
+  async logout(req: Request, res: Response): Promise<void> {
+    try {
+      const refreshToken = req.cookies.refreshToken;
+      const personId = Number(req.body.personId);
 
+      if (refreshToken) {
+        await logoutUseCase.execute(refreshToken, personId);
+      }
 
-async logout(req: Request, res: Response): Promise<void> {
-  const body = req.body as { refreshToken?: string } | undefined;
-  const refreshToken = (req as Request & { cookies?: Record<string, string> }).cookies?.refreshToken;
-
-  // Support both body and cookie-based refresh token (optional)
-
-
-  // If there’s nothing to revoke, don’t throw. Just succeed.
-  if (!refreshToken) {
-    res.status(204).send();
-    return;
+      res.clearCookie('refreshToken');
+      res.json({ message: 'Logged out' });
+    } catch (err: unknown) {
+      const e = err as Error;
+      console.error('[logout] error:', e);
+      res.status(400).json({ error: e.message });
+    }
   }
-
-  // TODO: revoke token in DB/allowlist/denylist (your implementation)
-  // await authService.revokeRefreshToken(refreshToken)
-
-  res.status(204).send();
-}
 
   async forgotPassword(req: Request, res: Response): Promise<void> {
     try {
       const { email } = req.body;
       await forgotPasswordUseCase.execute(email);
-      res.json({ message: "If a user exists with that email, a link was sent." });
+      res.json({ message: 'If a user exists with that email, a link was sent.' });
     } catch (err: unknown) {
       const e = err as Error;
       res.status(400).json({ error: e.message });
@@ -134,10 +127,61 @@ async logout(req: Request, res: Response): Promise<void> {
     try {
       const { token, newPassword } = req.body;
       await resetPasswordUseCase.execute(token, newPassword);
-      res.json({ message: "Password updated" });
+      res.json({ message: 'Password updated' });
     } catch (err: unknown) {
       const e = err as Error;
       res.status(400).json({ error: e.message });
+    }
+  }
+    // ─────────────────────────
+  // SOCIAL LOGIN: GOOGLE
+  // ─────────────────────────
+  async loginWithGoogle(req: Request, res: Response): Promise<void> {
+    try {
+      const { credential } = req.body as { credential?: string };
+
+      if (!credential) {
+        res.status(400).json({ error: 'Missing Google credential' });
+        return;
+      }
+
+      const result = await loginWithGoogleUseCase.execute({ credential });
+
+      res.status(200).json({
+        accessToken: result.accessToken,
+        personId: result.personId,
+        userName: result.userName,
+      });
+    } catch (err) {
+      const e = err as Error;
+      console.error('[loginWithGoogle] error:', e);
+      res.status(401).json({ error: e.message || 'Google auth failed' });
+    }
+  }
+
+  // ─────────────────────────
+  // SOCIAL LOGIN: APPLE
+  // ─────────────────────────
+  async loginWithApple(req: Request, res: Response): Promise<void> {
+    try {
+      const { credential } = req.body as { credential?: string };
+
+      if (!credential) {
+        res.status(400).json({ error: 'Missing Apple credential' });
+        return;
+      }
+
+      const result = await loginWithAppleUseCase.execute({ credential });
+
+      res.status(200).json({
+        accessToken: result.accessToken,
+        personId: result.personId,
+        userName: result.userName,
+      });
+    } catch (err) {
+      const e = err as Error;
+      console.error('[loginWithApple] error:', e);
+      res.status(401).json({ error: e.message || 'Apple auth failed' });
     }
   }
 }

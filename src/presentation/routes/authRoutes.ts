@@ -17,3 +17,6 @@ authRoutes.post("/refresh", controller.refresh.bind(controller));
 authRoutes.post("/logout", controller.logout.bind(controller));
 authRoutes.post("/forgot-password", controller.forgotPassword.bind(controller));
 authRoutes.post("/reset-password", controller.resetPassword.bind(controller));
+authRoutes.post('/google', controller.loginWithGoogle.bind(controller));
+authRoutes.post('/apple', controller.loginWithApple.bind(controller));
+

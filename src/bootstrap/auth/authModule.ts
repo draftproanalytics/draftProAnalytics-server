@@ -43,7 +43,7 @@ export function buildAuthController(): AuthController {
     tokenService
   );
 
-  return new AuthController(registerUseCase, loginUseCase);
+  return new AuthController();
 }
 
 
