@@ -52,6 +52,7 @@ export class JwtTokenService {
     const access = process.env.JWT_ACCESS_SECRET;
     const refresh = process.env.JWT_REFRESH_SECRET;
 
+    console.log('[JwtTokenService] JWT_ACCESS_SECRET =', process.env.JWT_ACCESS_SECRET);
     if (!access || access.trim().length === 0) throw new Error("Missing JWT_ACCESS_SECRET");
     if (!refresh || refresh.trim().length === 0) throw new Error("Missing JWT_REFRESH_SECRET");
 

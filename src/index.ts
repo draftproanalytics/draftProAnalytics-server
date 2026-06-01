@@ -1,4 +1,21 @@
+import path from 'node:path';
+import dotenv from 'dotenv';
+
+const envPath = path.resolve(process.cwd(), '.env');
+const result = dotenv.config({
+  path: envPath,
+  debug: true,
+});
+
+console.log('[env] cwd =', process.cwd());
+console.log('[env] loaded from =', envPath);
+console.log('[env] JWT_ACCESS_SECRET exists =', Boolean(process.env.JWT_ACCESS_SECRET));
+
+if (result.error) {
+  console.error('[env] dotenv error:', result.error);
+}
 // (sports_mgmt_app_server/) src/index.ts
+import 'dotenv/config';
 import "module-alias/register"; // ✅ must be first for @/... paths to resolve
 import "./config/env"; // ✅ loads dotenv-flow next
 import express from "express";
@@ -11,6 +28,24 @@ import { apiRoutes } from "./presentation/routes";
 import { errorHandler } from "./presentation/middleware/errorHandler";
 import { initScoreboardCron } from "./jobs/scoreboardCron";
 import { useCorsFromEnv } from "./presentation/middleware/cors";
+import fs from 'node:fs';
+import { prisma } from "@/infrastructure/database/prisma";
+import { createB4MeAnalysisRouter } from './modules/b4meAnalysis/presentation/routes/b4meAnalysis.routes';
+import { createB4MeImportRouter } from './modules/b4meImport/presentation/routes/b4meImport.routes';
+//import path from 'node:path';
+//import dotenv from 'dotenv';
+
+const nodeEnv = process.env.NODE_ENV ?? 'development';
+/*
+const envPath = path.resolve(
+  process.cwd(),
+  nodeEnv === 'development' ? '.env.development' : '.env'
+); */
+
+dotenv.config({
+  path: fs.existsSync(envPath) ? envPath : path.resolve(process.cwd(), '.env'),
+});
+
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -23,6 +58,7 @@ const API_BASE = `/api`; // e.g., /api
 // ---- middleware
 app.use(helmet());
 app.use(useCorsFromEnv());
+
 app.use(
   morgan(isDev ? "dev" : "combined", {
     skip: () => process.env.NODE_ENV === "test",
@@ -46,6 +82,8 @@ app.get("/health", (_req, res) => {
 
 // ---- routes
 app.use(API_BASE, apiRoutes);
+app.use('/api/b4me', createB4MeAnalysisRouter(prisma));
+app.use('/api/b4me-import', createB4MeImportRouter(prisma));
 
 // ---- list all registered routes (debugging only)
 console.log("Registered routes:");

@@ -1,7 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { DraftPickDTO } from '../../domain/draftpick/dto/DraftPickDTO';
 import { teamAbbreviationMapper } from '../../infrastructure/scraper/TeamAbbreviationMapping';
-
+import { DraftPick_status } from '@prisma/client';
+import { resolveDraftPickDefaults } from '../../infrastructure/repositories/helpers/resolveDraftPickDefaults';
 /**
  * Draft Pick Import Service
  * Handles the business logic for importing draft picks into the database
@@ -60,7 +61,9 @@ export class DraftPickImportService {
     // Find or create team
     const team = await this.findTeamByAbbreviation(standardAbbreviation);
     if (!team) {
-      throw new Error(`Team not found for abbreviation: ${teamAbbreviation} (mapped to: ${standardAbbreviation})`);
+      throw new Error(
+        `Team not found for abbreviation: ${teamAbbreviation} (mapped to: ${standardAbbreviation})`
+      );
     }
 
     // Find or create player
@@ -75,7 +78,16 @@ export class DraftPickImportService {
     );
 
     // Create or update draft pick
-    await this.createOrUpdateDraftPick(year, round, pickNumber, team.id, player.id, position, college, result);
+    await this.createOrUpdateDraftPick(
+      year,
+      round,
+      pickNumber,
+      team.id,
+      player.id,
+      position,
+      college,
+      result
+    );
 
     // Create or update player team relationship
     await this.createOrUpdatePlayerTeam(player.id, team.id, year, result);
@@ -87,10 +99,7 @@ export class DraftPickImportService {
   private async findTeamByAbbreviation(abbreviation: string) {
     return this.prisma.team.findFirst({
       where: {
-        OR: [
-          { abbreviation: abbreviation },
-          { name: { contains: abbreviation } },
-        ],
+        OR: [{ abbreviation: abbreviation }, { name: { contains: abbreviation } }],
       },
     });
   }
@@ -178,16 +187,22 @@ export class DraftPickImportService {
       });
       result.draftPicksUpdated++;
     } else {
+      const defaults = await resolveDraftPickDefaults(this.prisma, year, round, null);
+
       await this.prisma.draftPick.create({
         data: {
+          draftEventId: defaults.draftEventId,
           draftYear: year,
           round,
+          pickInRound: defaults.pickInRound,
           pickNumber,
           currentTeamId: teamId,
+          originalTeam: teamId,
           playerId,
           position,
           college,
           used: true,
+          status: DraftPick_status.PICKED,
         },
       });
       result.draftPicksCreated++;

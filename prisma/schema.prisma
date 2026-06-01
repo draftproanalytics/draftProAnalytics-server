@@ -28,66 +28,51 @@ model CombineScore {
 }
 
 model DraftPick {
-  id                                       Int        @id @default(autoincrement())
+  id                                       Int                 @id @default(autoincrement())
+  draftEventId                             Int
   round                                    Int
+  pickInRound                              Int
   pickNumber                               Int
   draftYear                                Int
   currentTeamId                            Int
   prospectId                               Int?
   playerId                                 Int?
-  used                                     Boolean    @default(false)
-  createdAt                                DateTime?  @default(now()) @db.Timestamp(0)
-  updatedAt                                DateTime?  @default(now()) @db.Timestamp(0)
+  status                                   DraftPick_status    @default(SCHEDULED)
+  isCompensatory                           Boolean             @default(false)
+  acquiredViaTrade                         Boolean             @default(false)
+  playerFirstName                          String?             @db.VarChar(45)
+  playerLastName                           String?             @db.VarChar(45)
+  used                                     Boolean             @default(false)
+  createdAt                                DateTime?           @default(now()) @db.Timestamp(0)
+  updatedAt                                DateTime?           @default(now()) @db.Timestamp(0)
   originalTeam                             Int?
-  position                                 String?    @db.VarChar(45)
-  college                                  String?    @db.VarChar(255)
-  Team                                     Team       @relation(fields: [currentTeamId], references: [id], map: "fk_DraftPick_CurrentTeam")
-  Player                                   Player?    @relation(fields: [playerId], references: [id], map: "fk_DraftPick_Player")
-  Prospect_DraftPick_prospectIdToProspect  Prospect?  @relation("DraftPick_prospectIdToProspect", fields: [prospectId], references: [id], map: "fk_DraftPick_Prospect")
-  Prospect_Prospect_draftPickIdToDraftPick Prospect[] @relation("Prospect_draftPickIdToDraftPick")
+  position                                 String?             @db.VarChar(45)
+  college                                  String?             @db.VarChar(255)
+  selectedAt                               DateTime?           @db.DateTime(0)
+  pickGrade                                String?             @db.VarChar(5)
+  valueGrade                               String?             @db.VarChar(5)
+  needsFitGrade                            String?             @db.VarChar(5)
+  analystNotes                             String?             @db.Text
+  tradeNotes                               String?             @db.Text
+  Team                                     Team                @relation(fields: [currentTeamId], references: [id], map: "fk_DraftPick_CurrentTeam")
+  Player                                   Player?             @relation(fields: [playerId], references: [id], map: "fk_DraftPick_Player")
+  Prospect_DraftPick_prospectIdToProspect  Prospect?           @relation("DraftPick_prospectIdToProspect", fields: [prospectId], references: [id], map: "fk_DraftPick_Prospect")
+  DraftEvent                               DraftEvent          @relation(fields: [draftEventId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_draft_pick_event")
+  DraftPickAuditLog                        DraftPickAuditLog[]
+  Prospect_Prospect_draftPickIdToDraftPick Prospect[]          @relation("Prospect_draftPickIdToDraftPick")
 
-  @@unique([draftYear, round, pickNumber], map: "unique_draft_pick")
+  @@unique([draftEventId, pickNumber], map: "uq_DraftPick_event_pickNumber")
+  @@unique([draftEventId, round, pickInRound], map: "uq_DraftPick_event_round_pickInRound")
   @@index([playerId], map: "fk_DraftPick_Player_idx")
   @@index([prospectId], map: "fk_DraftPick_Prospect_idx")
   @@index([currentTeamId, draftYear], map: "idx_draftpick_currentteam")
   @@index([draftYear], map: "idx_draftpick_originalteam")
   @@index([used], map: "idx_draftpick_used")
-}
-
-model Game {
-  id                Int                     @id @default(autoincrement())
-  seasonYear        String                  @db.VarChar(4)
-  gameWeek          Int?                    @db.TinyInt
-  gameDate          DateTime?               @db.DateTime(0)
-  homeTeamId        Int
-  awayTeamId        Int
-  gameLocation      String?                 @db.VarChar(255)
-  gameCity          String?                 @db.VarChar(100)
-  gameStateProvince String?                 @db.VarChar(100)
-  gameCountry       String                  @default("USA") @db.VarChar(50)
-  homeScore         Int?                    @default(0)
-  awayScore         Int?                    @default(0)
-  gameStatus        Game_gameStatus         @default(scheduled)
-  isPlayoff         Boolean                 @default(false)
-  playoffRound      Game_playoffRound?
-  playoffConference Game_playoffConference?
-  homeSeed          Int?
-  awaySeed          Int?
-  createdAt         DateTime?               @default(now()) @db.Timestamp(0)
-  updatedAt         DateTime?               @default(now()) @db.Timestamp(0)
-  espnEventId       String?                 @unique @db.VarChar(255)
-  espnCompetitionId String?                 @unique @db.VarChar(255)
-  seasonType        Int?                    @default(2) @db.TinyInt
-  homeTeam          Team                    @relation("Game_homeTeamIdToTeam", fields: [homeTeamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "Game_ibfk_1")
-  awayTeam          Team                    @relation("Game_awayTeamIdToTeam", fields: [awayTeamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "Game_ibfk_2")
-
-  @@unique([seasonYear, gameDate, homeTeamId, awayTeamId], map: "unique_game")
-  @@index([awayTeamId], map: "awayTeamId")
-  @@index([homeTeamId], map: "homeTeamId")
-  @@index([espnCompetitionId], map: "idx_game_competitionId")
-  @@index([gameStatus], map: "idx_game_status")
-  @@index([seasonYear, gameWeek], map: "idx_game_year_week")
-  @@index([seasonYear, seasonType, gameStatus, gameWeek], map: "idx_game_year_type_status_week")
+  @@index([draftEventId, originalTeam], map: "idx_DraftPick_event_originalTeam")
+  @@index([draftEventId, round], map: "idx_DraftPick_event_round")
+  @@index([draftEventId, status], map: "idx_DraftPick_event_status")
+  @@index([draftEventId, currentTeamId], map: "idx_DraftPick_event_team")
+  @@index([status], map: "idx_DraftPick_status")
 }
 
 model Person {
@@ -197,35 +182,37 @@ model PostSeasonResult {
 }
 
 model Prospect {
-  id                                        Int                   @id @default(autoincrement())
-  firstName                                 String                @db.VarChar(45)
-  lastName                                  String                @db.VarChar(45)
-  position                                  String                @db.VarChar(10)
-  college                                   String                @db.VarChar(75)
-  height                                    Float                 @db.Float
-  weight                                    Float                 @db.Float
-  handSize                                  Float?                @db.Float
-  armLength                                 Float?                @db.Float
-  homeCity                                  String?               @db.VarChar(45)
-  homeState                                 String?               @db.VarChar(45)
-  fortyTime                                 Float?                @db.Float
-  tenYardSplit                              Float?                @db.Float
-  verticalLeap                              Float?                @db.Float
-  broadJump                                 Float?                @db.Float
-  threeCone                                 Float?                @db.Float
-  twentyYardShuttle                         Float?                @db.Float
+  id                                        Int                         @id @default(autoincrement())
+  firstName                                 String                      @db.VarChar(45)
+  lastName                                  String                      @db.VarChar(45)
+  position                                  String                      @db.VarChar(10)
+  college                                   String                      @db.VarChar(75)
+  height                                    Float                       @db.Float
+  weight                                    Float                       @db.Float
+  handSize                                  Float?                      @db.Float
+  armLength                                 Float?                      @db.Float
+  homeCity                                  String?                     @db.VarChar(45)
+  homeState                                 String?                     @db.VarChar(45)
+  fortyTime                                 Float?                      @db.Float
+  tenYardSplit                              Float?                      @db.Float
+  verticalLeap                              Float?                      @db.Float
+  broadJump                                 Float?                      @db.Float
+  threeCone                                 Float?                      @db.Float
+  twentyYardShuttle                         Float?                      @db.Float
   benchPress                                Int?
-  drafted                                   Boolean               @default(false)
-  draftYear                                 Int?                  @db.Year
+  drafted                                   Boolean                     @default(false)
+  draftYear                                 Int?                        @db.Year
   teamId                                    Int?
   draftPickId                               Int?
-  createdAt                                 DateTime?             @default(now()) @db.Timestamp(0)
-  updatedAt                                 DateTime?             @default(now()) @db.Timestamp(0)
-  DraftPick_DraftPick_prospectIdToProspect  DraftPick[]           @relation("DraftPick_prospectIdToProspect")
+  createdAt                                 DateTime?                   @default(now()) @db.Timestamp(0)
+  updatedAt                                 DateTime?                   @default(now()) @db.Timestamp(0)
+  B4MeProspectRvaEvaluation                 B4MeProspectRvaEvaluation[]
+  B4MeWRMetrics                             B4MeWRMetrics?
+  DraftPick_DraftPick_prospectIdToProspect  DraftPick[]                 @relation("DraftPick_prospectIdToProspect")
   DraftSimulationPick                       DraftSimulationPick[]
   Player                                    Player[]
-  DraftPick_Prospect_draftPickIdToDraftPick DraftPick?            @relation("Prospect_draftPickIdToDraftPick", fields: [draftPickId], references: [id], map: "fk_Prospect_DraftPick")
-  Team                                      Team?                 @relation(fields: [teamId], references: [id], map: "fk_Prospect_Team")
+  DraftPick_Prospect_draftPickIdToDraftPick DraftPick?                  @relation("Prospect_draftPickIdToDraftPick", fields: [draftPickId], references: [id], map: "fk_Prospect_DraftPick")
+  Team                                      Team?                       @relation(fields: [teamId], references: [id], map: "fk_Prospect_Team")
   ProspectRanking                           ProspectRanking[]
 
   @@index([draftPickId], map: "fk_Prospect_DraftPick")
@@ -234,6 +221,42 @@ model Prospect {
   @@index([drafted], map: "idx_prospect_drafted")
   @@index([lastName, firstName], map: "idx_prospect_name")
   @@index([position], map: "idx_prospect_position")
+}
+
+model Game {
+  id                Int                     @id @default(autoincrement())
+  seasonYear        String                  @db.VarChar(4)
+  gameWeek          Int?                    @db.TinyInt
+  gameDate          DateTime?               @db.DateTime(0)
+  homeTeamId        Int
+  awayTeamId        Int
+  gameLocation      String?                 @db.VarChar(255)
+  gameCity          String?                 @db.VarChar(100)
+  gameStateProvince String?                 @db.VarChar(100)
+  gameCountry       String                  @default("USA") @db.VarChar(50)
+  homeScore         Int?                    @default(0)
+  awayScore         Int?                    @default(0)
+  gameStatus        Game_gameStatus         @default(scheduled)
+  isPlayoff         Boolean                 @default(false)
+  playoffRound      Game_playoffRound?
+  playoffConference Game_playoffConference?
+  homeSeed          Int?
+  awaySeed          Int?
+  createdAt         DateTime?               @default(now()) @db.Timestamp(0)
+  updatedAt         DateTime?               @default(now()) @db.Timestamp(0)
+  espnEventId       String?                 @unique @db.VarChar(255)
+  espnCompetitionId String?                 @unique @db.VarChar(255)
+  seasonType        Int?                    @default(2) @db.TinyInt
+  homeTeam          Team                    @relation("Game_homeTeamIdToTeam", fields: [homeTeamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "Game_ibfk_1")
+  awayTeam          Team                    @relation("Game_awayTeamIdToTeam", fields: [awayTeamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "Game_ibfk_2")
+
+  @@unique([seasonYear, gameDate, homeTeamId, awayTeamId], map: "unique_game")
+  @@index([awayTeamId], map: "awayTeamId")
+  @@index([homeTeamId], map: "homeTeamId")
+  @@index([espnCompetitionId], map: "idx_game_competitionId")
+  @@index([gameStatus], map: "idx_game_status")
+  @@index([seasonYear, gameWeek], map: "idx_game_year_week")
+  @@index([seasonYear, seasonType, gameStatus, gameWeek], map: "idx_game_year_type_status_week")
 }
 
 model Schedule {
@@ -276,6 +299,7 @@ model Team {
   DraftSimulationPick_DraftSimulationPick_currentTeamIdToTeam  DraftSimulationPick[]  @relation("DraftSimulationPick_currentTeamIdToTeam")
   DraftSimulationPick_DraftSimulationPick_originalTeamIdToTeam DraftSimulationPick[]  @relation("DraftSimulationPick_originalTeamIdToTeam")
   DraftSimulationTeam                                          DraftSimulationTeam[]
+  DraftTeamScorecard                                           DraftTeamScorecard[]
   Game_Game_homeTeamIdToTeam                                   Game[]                 @relation("Game_homeTeamIdToTeam")
   Game_Game_awayTeamIdToTeam                                   Game[]                 @relation("Game_awayTeamIdToTeam")
   PlayerTeam                                                   PlayerTeam[]
@@ -361,70 +385,7 @@ model data_quality_reports {
   @@index([quality_score], map: "idx_quality_score")
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model espn_players {
-  id                 Int                          @id @default(autoincrement())
-  espn_id            String                       @unique(map: "espn_id") @db.VarChar(50)
-  first_name         String                       @db.VarChar(100)
-  last_name          String                       @db.VarChar(100)
-  display_name       String                       @db.VarChar(200)
-  short_name         String                       @db.VarChar(100)
-  position           espn_players_position
-  jersey_number      Int?                         @db.UnsignedTinyInt
-  team_espn_id       String?                      @db.VarChar(50)
-  height             Int?                         @db.UnsignedSmallInt
-  weight             Int?                         @db.UnsignedSmallInt
-  age                Int?                         @db.UnsignedTinyInt
-  date_of_birth      DateTime?                    @db.Date
-  college            String?                      @db.VarChar(200)
-  experience         Int?                         @db.UnsignedTinyInt
-  is_active          Boolean                      @default(true)
-  is_rookie          Boolean                      @default(false)
-  injury_status      espn_players_injury_status   @default(HEALTHY)
-  injury_description String?                      @db.Text
-  contract_status    espn_players_contract_status @default(UNKNOWN)
-  salary             BigInt?
-  created_at         DateTime?                    @default(now()) @db.Timestamp(0)
-  updated_at         DateTime?                    @default(now()) @db.Timestamp(0)
-  last_sync_at       DateTime?                    @db.Timestamp(0)
-  player_draft_info  player_draft_info?
-  player_headshots   player_headshots[]
-  player_metadata    player_metadata[]
-  player_statistics  player_statistics[]
 
-  @@index([is_active], map: "idx_espn_players_active")
-  @@index([espn_id], map: "idx_espn_players_espn_id")
-  @@index([last_name, first_name], map: "idx_espn_players_name")
-  @@index([position], map: "idx_espn_players_position")
-  @@index([last_sync_at], map: "idx_espn_players_sync")
-  @@index([team_espn_id], map: "idx_espn_players_team")
-}
-
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model espn_teams {
-  id              Int       @id @default(autoincrement())
-  espn_id         String    @unique(map: "espn_id") @db.VarChar(50)
-  name            String    @db.VarChar(100)
-  display_name    String    @db.VarChar(200)
-  abbreviation    String    @db.VarChar(10)
-  nickname        String?   @db.VarChar(100)
-  city            String    @db.VarChar(100)
-  state           String?   @db.VarChar(50)
-  conference      String?   @db.VarChar(50)
-  division        String?   @db.VarChar(50)
-  color           String?   @db.VarChar(20)
-  alternate_color String?   @db.VarChar(20)
-  logo_url        String?   @db.Text
-  is_active       Boolean   @default(true)
-  created_at      DateTime? @default(now()) @db.Timestamp(0)
-  updated_at      DateTime? @default(now()) @db.Timestamp(0)
-  last_sync_at    DateTime? @db.Timestamp(0)
-
-  @@index([abbreviation], map: "idx_espn_teams_abbreviation")
-  @@index([conference, division], map: "idx_espn_teams_conference_division")
-  @@index([espn_id], map: "idx_espn_teams_espn_id")
-  @@index([last_sync_at], map: "idx_espn_teams_sync")
-}
 
 model player_draft_info {
   id             Int          @id @default(autoincrement())
@@ -549,32 +510,45 @@ model workflow_step_results {
 }
 
 model Job {
-  id                 Int                  @id @default(autoincrement())
-  type               String               @db.VarChar(100)
-  payload            Json?
-  status             Job_status           @default(pending)
-  createdAt          DateTime             @default(now())
-  startedAt          DateTime?
-  finishedAt         DateTime?
-  cancelAt           DateTime?
-  cancelReason       String?              @db.VarChar(255)
-  resultCode         String?              @db.VarChar(50)
-  resultJson         Json?
-  DraftOrderSnapshot DraftOrderSnapshot[]
-  logs               JobLog[]
+  id                  Int                  @id @default(autoincrement())
+  type                String               @db.VarChar(100)
+  payload             Json?
+  status              Job_status           @default(pending)
+  createdAt           DateTime             @default(now())
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  cancelAt            DateTime?
+  cancelReason        String?              @db.VarChar(255)
+  resultCode          String?              @db.VarChar(50)
+  resultJson          Json?
+  errorMessage        String?              @db.Text
+  progressPercent     Int                  @default(0) @db.UnsignedTinyInt
+  totalItems          Int                  @default(0) @db.UnsignedInt
+  processedItems      Int                  @default(0) @db.UnsignedInt
+  requestedByPersonId Int?
+  DraftOrderSnapshot  DraftOrderSnapshot[]
+  logs                JobLog[]
+  JobStep             JobStep[]
 
   @@index([status])
+  @@index([createdAt], map: "idx_Job_createdAt")
+  @@index([requestedByPersonId], map: "idx_Job_requestedByPersonId")
+  @@index([type], map: "idx_Job_type")
+  @@index([type, status], map: "idx_Job_type_status")
 }
 
 model JobLog {
-  id        Int      @id @default(autoincrement())
-  jobId     Int
-  level     String   @db.VarChar(10)
-  message   String   @db.Text
-  createdAt DateTime @default(now())
-  Job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id          Int      @id @default(autoincrement())
+  jobId       Int
+  level       String   @db.VarChar(10)
+  message     String   @db.Text
+  contextJson Json?
+  createdAt   DateTime @default(now())
+  Job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([jobId])
+  @@index([createdAt], map: "idx_JobLog_createdAt")
+  @@index([level], map: "idx_JobLog_level")
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -600,6 +574,35 @@ model Jobs {
   @@index([type, status], map: "idx_type_status")
 }
 
+model JobStep {
+  id             Int            @id @default(autoincrement())
+  jobId          Int
+  stepName       String         @db.VarChar(100)
+  status         JobStep_status @default(pending)
+  sortOrder      Int            @default(0) @db.UnsignedInt
+  startedAt      DateTime?      @db.DateTime(0)
+  finishedAt     DateTime?      @db.DateTime(0)
+  totalItems     Int            @default(0) @db.UnsignedInt
+  processedItems Int            @default(0) @db.UnsignedInt
+  resultJson     Json?
+  errorMessage   String?        @db.Text
+  createdAt      DateTime       @default(now()) @db.DateTime(0)
+  updatedAt      DateTime       @default(now()) @db.DateTime(0)
+  Job            Job            @relation(fields: [jobId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_JobStep_Job")
+
+  @@index([jobId], map: "idx_JobStep_jobId")
+  @@index([jobId, sortOrder], map: "idx_JobStep_job_sort")
+  @@index([status], map: "idx_JobStep_status")
+}
+
+enum Job_status {
+  pending
+  in_progress
+  completed
+  failed
+  canceled
+}
+
 model espn_draft_picks {
   id                    Int       @id @default(autoincrement())
   espn_id               String    @unique(map: "espn_id") @db.VarChar(255)
@@ -623,6 +626,71 @@ model espn_draft_picks {
   @@index([player_espn_id], map: "idx_player")
   @@index([team_espn_id], map: "idx_team")
   @@index([year, round, overall_pick], map: "idx_year_round_pick")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model espn_players {
+  id                 Int                          @id @default(autoincrement())
+  espn_id            String                       @unique(map: "espn_id") @db.VarChar(50)
+  first_name         String                       @db.VarChar(100)
+  last_name          String                       @db.VarChar(100)
+  display_name       String                       @db.VarChar(200)
+  short_name         String                       @db.VarChar(100)
+  position           espn_players_position
+  jersey_number      Int?                         @db.UnsignedTinyInt
+  team_espn_id       String?                      @db.VarChar(50)
+  height             Int?                         @db.UnsignedSmallInt
+  weight             Int?                         @db.UnsignedSmallInt
+  age                Int?                         @db.UnsignedTinyInt
+  date_of_birth      DateTime?                    @db.Date
+  college            String?                      @db.VarChar(200)
+  experience         Int?                         @db.UnsignedTinyInt
+  is_active          Boolean                      @default(true)
+  is_rookie          Boolean                      @default(false)
+  injury_status      espn_players_injury_status   @default(HEALTHY)
+  injury_description String?                      @db.Text
+  contract_status    espn_players_contract_status @default(UNKNOWN)
+  salary             BigInt?
+  created_at         DateTime?                    @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?                    @default(now()) @db.Timestamp(0)
+  last_sync_at       DateTime?                    @db.Timestamp(0)
+  player_draft_info  player_draft_info?
+  player_headshots   player_headshots[]
+  player_metadata    player_metadata[]
+  player_statistics  player_statistics[]
+
+  @@index([is_active], map: "idx_espn_players_active")
+  @@index([espn_id], map: "idx_espn_players_espn_id")
+  @@index([last_name, first_name], map: "idx_espn_players_name")
+  @@index([position], map: "idx_espn_players_position")
+  @@index([last_sync_at], map: "idx_espn_players_sync")
+  @@index([team_espn_id], map: "idx_espn_players_team")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model espn_teams {
+  id              Int       @id @default(autoincrement())
+  espn_id         String    @unique(map: "espn_id") @db.VarChar(50)
+  name            String    @db.VarChar(100)
+  display_name    String    @db.VarChar(200)
+  abbreviation    String    @db.VarChar(10)
+  nickname        String?   @db.VarChar(100)
+  city            String    @db.VarChar(100)
+  state           String?   @db.VarChar(50)
+  conference      String?   @db.VarChar(50)
+  division        String?   @db.VarChar(50)
+  color           String?   @db.VarChar(20)
+  alternate_color String?   @db.VarChar(20)
+  logo_url        String?   @db.Text
+  is_active       Boolean   @default(true)
+  created_at      DateTime? @default(now()) @db.Timestamp(0)
+  updated_at      DateTime? @default(now()) @db.Timestamp(0)
+  last_sync_at    DateTime? @db.Timestamp(0)
+
+  @@index([abbreviation], map: "idx_espn_teams_abbreviation")
+  @@index([conference, division], map: "idx_espn_teams_conference_division")
+  @@index([espn_id], map: "idx_espn_teams_espn_id")
+  @@index([last_sync_at], map: "idx_espn_teams_sync")
 }
 
 model EmailVerificationToken {
@@ -1016,6 +1084,271 @@ model teamDraftPatterns {
   @@index([teamId], map: "idx_teamDraftPatterns_teamId")
 }
 
+model B4MeEvaluationMetadata {
+  id                     BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  prospectEvaluationId   BigInt                 @db.UnsignedBigInt
+  frameworkCatalogId     BigInt                 @db.UnsignedBigInt
+  scoringModeUsed        String                 @default("ENHANCED") @db.VarChar(32)
+  evaluationNotes        String?                @db.Text
+  validationStatus       String                 @default("UNVALIDATED") @db.VarChar(32)
+  activeFilterSummary    Json?
+  methodologySnapshot    Json?
+  futureTeamContext      Json?
+  createdAt              DateTime               @default(now()) @db.DateTime(0)
+  updatedAt              DateTime               @default(now()) @db.DateTime(0)
+  B4MeFrameworkCatalog   B4MeFrameworkCatalog   @relation(fields: [frameworkCatalogId], references: [id], map: "fk_B4MeEvaluationMetadata_FrameworkCatalog")
+  B4MeProspectEvaluation B4MeProspectEvaluation @relation(fields: [prospectEvaluationId], references: [id], onDelete: Cascade, map: "fk_B4MeEvaluationMetadata_ProspectEvaluation")
+
+  @@unique([prospectEvaluationId, frameworkCatalogId], map: "uq_B4MeEvaluationMetadata_eval_framework")
+  @@index([frameworkCatalogId], map: "idx_B4MeEvaluationMetadata_frameworkCatalogId")
+  @@index([prospectEvaluationId], map: "idx_B4MeEvaluationMetadata_prospectEvaluationId")
+}
+
+model B4MeFrameworkCatalog {
+  id                     BigInt                   @id @default(autoincrement()) @db.UnsignedBigInt
+  positionGroup          String                   @db.VarChar(16)
+  frameworkVersion       String                   @db.VarChar(32)
+  frameworkType          String                   @db.VarChar(64)
+  methodologyLineage     String                   @db.VarChar(255)
+  validationStatus       String                   @default("UNVALIDATED") @db.VarChar(32)
+  validationNote         String?                  @db.VarChar(500)
+  knownLimitations       String?                  @db.Text
+  scoringModeDefault     String                   @default("ENHANCED") @db.VarChar(32)
+  isActive               Boolean                  @default(true)
+  createdAt              DateTime                 @default(now()) @db.DateTime(0)
+  updatedAt              DateTime                 @default(now()) @db.DateTime(0)
+  B4MeEvaluationMetadata B4MeEvaluationMetadata[]
+  B4MeProspectEvaluation B4MeProspectEvaluation[]
+
+  @@unique([positionGroup, frameworkVersion], map: "uq_B4MeFrameworkCatalog_positionGroup_frameworkVersion")
+  @@index([positionGroup, isActive], map: "idx_B4MeFrameworkCatalog_positionGroup_isActive")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model B4MeProspectEvaluation {
+  id                        BigInt                      @id @default(autoincrement()) @db.UnsignedBigInt
+  prospectId                Int?
+  positionGroup             String                      @db.VarChar(16)
+  draftYear                 Int?
+  playerName                String                      @db.VarChar(150)
+  school                    String?                     @db.VarChar(150)
+  contactArchetype          String                      @default("UNKNOWN") @db.VarChar(24)
+  frameworkVersion          String                      @default("b4me-phase1-v2") @db.VarChar(32)
+  frameworkCatalogId        BigInt?                     @db.UnsignedBigInt
+  scoringMode               String                      @default("BASE_PLUS_CONTEXT") @db.VarChar(32)
+  evaluationKey             String                      @unique(map: "uq_B4MeProspectEvaluation_evaluationKey") @default("") @db.VarChar(255)
+  rawMetricsJson            Json
+  baseScoringJson           Json
+  modifiersJson             Json
+  coachabilityJson          Json
+  rfaJson                   Json
+  flagsJson                 Json
+  scoresJson                Json
+  optionalFiltersJson       Json
+  methodologySnapshotJson   Json?
+  scoreExplanation          String?                     @db.VarChar(1000)
+  projectionNote            String?                     @db.VarChar(255)
+  decisionTraceJson         Json?
+  activeFilterSummaryJson   Json?
+  optionalTeamContextJson   Json?
+  keyFlag                   String?                     @db.VarChar(255)
+  coachabilityTier          String?                     @db.VarChar(32)
+  pressManSurvivability     String?                     @db.VarChar(64)
+  rfaTier                   String?                     @db.VarChar(32)
+  rvaTier                   String?                     @db.VarChar(32)
+  finalB4MeScore            Decimal?                    @db.Decimal(7, 2)
+  rvaPlaceholderScore       Decimal?                    @db.Decimal(7, 2)
+  createdAt                 DateTime                    @default(now()) @db.DateTime(0)
+  updatedAt                 DateTime                    @default(now()) @db.DateTime(0)
+  computedAt                DateTime                    @default(now()) @db.DateTime(0)
+  B4MeEvaluationMetadata    B4MeEvaluationMetadata[]
+  B4MeFrameworkCatalog      B4MeFrameworkCatalog?       @relation(fields: [frameworkCatalogId], references: [id], map: "fk_B4MeProspectEvaluation_frameworkCatalog")
+  B4MeProspectRvaEvaluation B4MeProspectRvaEvaluation[]
+  B4MeRvaEvaluation         B4MeRvaEvaluation?
+
+  @@index([playerName], map: "idx_B4MeProspectEvaluation_playerName")
+  @@index([positionGroup, draftYear], map: "idx_B4MeProspectEvaluation_positionGroup_draftYear")
+  @@index([frameworkCatalogId], map: "idx_B4MeProspectEvaluation_frameworkCatalogId")
+  @@index([scoringMode], map: "idx_B4MeProspectEvaluation_scoringMode")
+}
+
+model B4MeProspectRvaEvaluation {
+  id                         BigInt                                @id @default(autoincrement()) @db.UnsignedBigInt
+  prospectId                 Int
+  prospectEvaluationId       BigInt?                               @db.UnsignedBigInt
+  scoringMode                B4MeProspectRvaEvaluation_scoringMode
+  finalB4MeScore             Decimal                               @db.Decimal(5, 2)
+  rvaTalent                  Decimal                               @db.Decimal(5, 2)
+  rvaFit                     Decimal                               @db.Decimal(5, 2)
+  rvaDurability              Decimal                               @db.Decimal(5, 2)
+  rvaRoleUtility             Decimal                               @db.Decimal(5, 2)
+  rvaCostEfficiency          Decimal                               @db.Decimal(5, 2)
+  rvaOpportunityCost         Decimal                               @db.Decimal(5, 2)
+  finalRvaScore              Decimal                               @db.Decimal(5, 2)
+  competitionDiscountApplied Boolean                               @default(false)
+  injurySampleWarning        Boolean                               @default(false)
+  summary                    String                                @db.VarChar(1000)
+  keyFlag                    String?                               @db.VarChar(255)
+  draftValueInterpretation   String                                @db.VarChar(1000)
+  opportunityCostSummary     String                                @db.VarChar(1000)
+  availabilitySummary        String                                @db.VarChar(1000)
+  injuryHistorySummary       String                                @db.VarChar(1000)
+  acquisitionCostSummary     String                                @db.VarChar(1000)
+  repeatExpenditureRisk      String                                @db.VarChar(1000)
+  createdAt                  DateTime                              @default(now()) @db.DateTime(0)
+  updatedAt                  DateTime                              @default(now()) @db.DateTime(0)
+  Prospect                   Prospect                              @relation(fields: [prospectId], references: [id], onDelete: Cascade, map: "fk_B4MeProspectRvaEvaluation_Prospect")
+  B4MeProspectEvaluation     B4MeProspectEvaluation?               @relation(fields: [prospectEvaluationId], references: [id], onDelete: Cascade, map: "fk_B4MeProspectRvaEvaluation_prospectEvaluation")
+
+  @@unique([prospectId, scoringMode], map: "uq_B4MeProspectRvaEvaluation_prospectId_scoringMode")
+  @@index([prospectId], map: "idx_B4MeProspectRvaEvaluation_prospectId")
+  @@index([prospectEvaluationId], map: "idx_B4MeProspectRvaEvaluation_prospectEvaluationId")
+}
+
+model B4MeRvaEvaluation {
+  id                     BigInt                 @id @default(autoincrement()) @db.UnsignedBigInt
+  prospectEvaluationId   BigInt                 @unique(map: "uq_B4MeRvaEvaluation_prospectEvaluationId") @db.UnsignedBigInt
+  isPlaceholder          Boolean                @default(true)
+  talentScore            Decimal?               @db.Decimal(5, 2)
+  fitScore               Decimal?               @db.Decimal(5, 2)
+  durabilityScore        Decimal?               @db.Decimal(5, 2)
+  roleUtilityScore       Decimal?               @db.Decimal(5, 2)
+  costEfficiencyScore    Decimal?               @db.Decimal(5, 2)
+  finalRvaScore          Decimal?               @db.Decimal(5, 2)
+  summary                String?                @db.VarChar(500)
+  createdAt              DateTime               @default(now()) @db.DateTime(0)
+  updatedAt              DateTime               @default(now()) @db.DateTime(0)
+  B4MeProspectEvaluation B4MeProspectEvaluation @relation(fields: [prospectEvaluationId], references: [id], onDelete: Cascade, map: "fk_B4MeRvaEvaluation_prospectEvaluationId")
+}
+
+model B4MeWRMetrics {
+  prospectId                      Int                            @id
+  yprr                            Decimal?                       @db.Decimal(6, 3)
+  pffOverallGrade                 Decimal?                       @db.Decimal(5, 2)
+  contestedCatchRate              Decimal?                       @db.Decimal(5, 2)
+  behindLosTargetRate             Decimal?                       @db.Decimal(5, 2)
+  receptions                      Int?
+  targets                         Int?
+  missedTacklesForcedPerReception Decimal?                       @db.Decimal(6, 3)
+  yacAfterContactPerReception     Decimal?                       @db.Decimal(6, 3)
+  routesRun                       Int?
+  gamesPlayed                     Int?
+  gamesMissed                     Int?
+  competitionLevel                B4MeWRMetrics_competitionLevel @default(UNKNOWN)
+  offensiveContextNotes           String?                        @db.VarChar(500)
+  qbPlayQuality                   Decimal?                       @db.Decimal(4, 3)
+  pffRank                         Int?
+  yprrRank                        Int?
+  pressManWinRate                 Decimal?                       @db.Decimal(5, 3)
+  releasePackageDepth             Int?
+  routeFamilyDiversity            Int?
+  alignmentFlexibilityIndex       Int?
+  rolePortabilityIndex            Int?
+  usageAdaptabilityIndex          Int?
+  slotRate                        Decimal?                       @db.Decimal(5, 2)
+  wideRate                        Decimal?                       @db.Decimal(5, 2)
+  boundaryRate                    Decimal?                       @db.Decimal(5, 2)
+  sourceMetadataJson              Json?
+  Prospect                        Prospect                       @relation(fields: [prospectId], references: [id], onDelete: Cascade, map: "fk_B4MeWRMetrics_Prospect")
+
+  @@index([competitionLevel], map: "idx_B4MeWRMetrics_competitionLevel")
+  @@index([pffRank], map: "idx_B4MeWRMetrics_pffRank")
+  @@index([yprrRank], map: "idx_B4MeWRMetrics_yprrRank")
+}
+
+model DraftEvent {
+  id                 Int                  @id @default(autoincrement())
+  draftYear          Int
+  name               String               @db.VarChar(100)
+  leagueCode         String               @default("NFL") @db.VarChar(20)
+  status             DraftEvent_status    @default(PLANNED)
+  startsAt           DateTime?            @db.DateTime(0)
+  endsAt             DateTime?            @db.DateTime(0)
+  createdAt          DateTime             @default(now()) @db.DateTime(0)
+  updatedAt          DateTime             @default(now()) @db.DateTime(0)
+  DraftPick          DraftPick[]
+  DraftPickAuditLog  DraftPickAuditLog[]
+  DraftTeamScorecard DraftTeamScorecard[]
+
+  @@unique([draftYear, leagueCode], map: "uq_draft_event_year_league")
+  @@index([draftYear], map: "idx_DraftEvent_draftYear")
+  @@index([status], map: "idx_DraftEvent_status")
+}
+
+model DraftPickAuditLog {
+  id                BigInt     @id @default(autoincrement())
+  draftPickId       Int
+  draftEventId      Int
+  action            String     @db.VarChar(50)
+  changedByPersonId Int?
+  previousSnapshot  Json?
+  nextSnapshot      Json
+  notes             String?    @db.Text
+  createdAt         DateTime?  @default(now()) @db.Timestamp(0)
+  DraftEvent        DraftEvent @relation(fields: [draftEventId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_DraftPickAuditLog_event")
+  DraftPick         DraftPick  @relation(fields: [draftPickId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_DraftPickAuditLog_pick")
+
+  @@index([action], map: "idx_DraftPickAuditLog_action")
+  @@index([createdAt], map: "idx_DraftPickAuditLog_createdAt")
+  @@index([draftEventId], map: "idx_DraftPickAuditLog_event")
+  @@index([draftPickId], map: "idx_DraftPickAuditLog_pick")
+}
+
+model DraftTeamScorecard {
+  id             Int        @id @default(autoincrement())
+  draftEventId   Int
+  teamId         Int
+  preDraftNeeds  Json?
+  strategyNotes  String?    @db.Text
+  totalPicks     Int        @default(0)
+  pickedCount    Int        @default(0)
+  overallGrade   Decimal?   @db.Decimal(5, 2)
+  valueGrade     Decimal?   @db.Decimal(5, 2)
+  needsFitGrade  Decimal?   @db.Decimal(5, 2)
+  analystSummary String?    @db.Text
+  createdAt      DateTime?  @default(now()) @db.Timestamp(0)
+  updatedAt      DateTime?  @default(now()) @db.Timestamp(0)
+  DraftEvent     DraftEvent @relation(fields: [draftEventId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_DraftTeamScorecard_event")
+  Team           Team       @relation(fields: [teamId], references: [id], onUpdate: NoAction, map: "fk_DraftTeamScorecard_team")
+
+  @@unique([draftEventId, teamId], map: "uq_DraftTeamScorecard_event_team")
+  @@index([draftEventId], map: "idx_DraftTeamScorecard_event")
+  @@index([teamId], map: "idx_DraftTeamScorecard_team")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DraftPick_backup_before_2025_picknumber_fix {
+  id               Int                                                @default(0)
+  draftEventId     Int
+  round            Int
+  pickInRound      Int
+  pickNumber       Int
+  draftYear        Int
+  currentTeamId    Int
+  prospectId       Int?
+  playerId         Int?
+  status           DraftPick_backup_before_2025_picknumber_fix_status @default(SCHEDULED)
+  isCompensatory   Boolean                                            @default(false)
+  acquiredViaTrade Boolean                                            @default(false)
+  playerFirstName  String?                                            @db.VarChar(45)
+  playerLastName   String?                                            @db.VarChar(45)
+  used             Boolean                                            @default(false)
+  createdAt        DateTime?                                          @default(now()) @db.Timestamp(0)
+  updatedAt        DateTime?                                          @default(now()) @db.Timestamp(0)
+  originalTeam     Int?
+  position         String?                                            @db.VarChar(45)
+  college          String?                                            @db.VarChar(255)
+  selectedAt       DateTime?                                          @db.DateTime(0)
+  pickGrade        String?                                            @db.VarChar(5)
+  valueGrade       String?                                            @db.VarChar(5)
+  needsFitGrade    String?                                            @db.VarChar(5)
+  analystNotes     String?                                            @db.Text
+  tradeNotes       String?                                            @db.Text
+
+  @@ignore
+}
+
+
 enum data_processing_jobs_job_type {
   PLAYER_SYNC
   TEAM_SYNC
@@ -1107,14 +1440,6 @@ enum espn_players_contract_status {
   UNKNOWN
 }
 
-enum Job_status {
-  pending
-  in_progress
-  completed
-  failed
-  canceled
-}
-
 enum Game_gameStatus {
   scheduled
   in_progress
@@ -1167,4 +1492,50 @@ enum historicalDraftPicks_careerGrade {
   Backup
   Bust
   TBD
+}
+
+enum B4MeProspectRvaEvaluation_scoringMode {
+  BASE_ONLY
+  BASE_PLUS_CONTEXT
+  FULL_DECISION_VIEW
+}
+
+enum B4MeWRMetrics_competitionLevel {
+  POWER
+  GROUP_OF_FIVE
+  FCS
+  UNKNOWN
+}
+
+enum DraftEvent_status {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum DraftPick_status {
+  SCHEDULED
+  ON_CLOCK
+  PICKED
+  TRADED
+  FORFEITED
+  SKIPPED
+}
+
+enum DraftPick_backup_before_2025_picknumber_fix_status {
+  SCHEDULED
+  ON_CLOCK
+  PICKED
+  TRADED
+  FORFEITED
+  SKIPPED
+}
+
+enum JobStep_status {
+  pending
+  in_progress
+  completed
+  failed
+  skipped
 }

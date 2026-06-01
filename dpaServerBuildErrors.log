@@ -1,0 +1,12 @@
+
+> sports_mgmt_app-server@1.0.0 build
+> tsc -p tsconfig.server.json && echo "✅ build ok" && ls -la dist | head
+
+src/modules/b4meAnalysis/presentation/routes/b4meAnalysis.routes.ts(11,53): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(request: Request<ParamsWithId>, response: Response) => Promise<Response>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(request: Request<ParamsWithId>, response: Response) => Promise<Response>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'request' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'Request<ParamsWithId, any, any, ParsedQs, Record<string, any>>'.
+            Types of property 'params' are incompatible.
+              Property 'id' is missing in type 'ParamsDictionary' but required in type 'ParamsWithId'.

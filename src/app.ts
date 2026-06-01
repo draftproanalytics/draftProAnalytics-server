@@ -9,6 +9,13 @@ import { registerAccessControlModule } from "@/modules/accessControl/infrastruct
 import { apiRoutes } from './presentation/routes';
 import { errorHandler } from './presentation/middleware/errorHandler';
 import { prisma } from "@/infrastructure/database/prisma";
+import { createB4MeAnalysisRouter } from './modules/b4meAnalysis/presentation/routes/b4meAnalysis.routes';
+import { createB4MeImportRouter } from './modules/b4meImport/presentation/routes/b4meImport.routes';
+import { createDraftDayScorecardModule } from './modules/draftDayScorecard/draftDayScorecard.module';
+import { buildDpaApiRouter } from './presentation/routes/buildDpaApiRouter';
+import { createDraftDayScorecardRouter } from './modules/draftDayScorecard/presentation/routes/draftDayScorecard.routes';
+import { createDpaJobsNflImportRouter } from '@/modules/jobs/presentation/routes/dpaJobsNflImport.routes';
+
 
 const app = express();
 
@@ -28,9 +35,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // API routes
+
+app.use('/api/b4me', createB4MeAnalysisRouter(prisma));
+app.use('/api/b4me-import', createB4MeImportRouter(prisma));
+app.use('/api/jobs', createDpaJobsNflImportRouter(prisma));
+app.use('/api', buildDpaApiRouter(prisma));
+
+app.use('/api/draft-day-scorecard',createDraftDayScorecardRouter(prisma));
 app.use(`/api`, apiRoutes);
-
-
 // 404 handler — MUST come before errorHandler
 app.use('*', (req, res, next) => {
   const err: any = new Error('Route not found');
