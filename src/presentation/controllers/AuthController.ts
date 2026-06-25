@@ -1,5 +1,5 @@
 // src/presentation/controllers/AuthController.ts
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import {
   verifyEmailUseCase,
   refreshTokenUseCase,
@@ -12,8 +12,28 @@ import {
   logoutUseCase,
 } from '@/infrastructure/dependencies';
 import { RegisterInputDTO } from '@/application/auth/register/RegisterDTO';
+import { ForgotPasswordUseCase } from '@/application/auth/forgot-password/ForgotPasswordUseCase';
+import { LoginUseCase } from '@/application/auth/login/LoginUseCase';
+import { LoginWithAppleUseCase } from '@/application/auth/login/loginWithAppleUseCase';
+import { LoginWithGoogleUseCase } from '@/application/auth/login/LoginWithGoogleUseCase';
+import { LogoutUseCase } from '@/application/auth/logout/LogoutUseCase';
+import { RefreshTokenUseCase } from '@/application/auth/refresh/RefreshTokenUseCase';
+import { RegisterUseCase } from '@/application/auth/register/RegisterUseCase';
+import { ResetPasswordUseCase } from '@/application/auth/reset-password/ResetPasswordUseCase';
+import { VerifyEmailUseCase } from '@/application/auth/verify-email/VerifyEmailUseCase';
 
 export class AuthController {
+  constructor(
+    private readonly registerUseCase: RegisterUseCase,
+    private readonly verifyEmailUseCase: VerifyEmailUseCase,
+    private readonly loginUseCase: LoginUseCase,
+    private readonly refreshTokenUseCase: RefreshTokenUseCase,
+    private readonly logoutUseCase: LogoutUseCase,
+    private readonly forgotPasswordUseCase: ForgotPasswordUseCase,
+    private readonly resetPasswordUseCase: ResetPasswordUseCase,
+    private readonly loginWithGoogleUseCase: LoginWithGoogleUseCase,
+    private readonly loginWithAppleUseCase: LoginWithAppleUseCase
+  ) {}
 
   async login(req: Request, res: Response): Promise<void> {
     try {
@@ -93,7 +113,7 @@ export class AuthController {
       res.status(400).json({ error: e.message });
     }
   }
-
+  /*
   async logout(req: Request, res: Response): Promise<void> {
     try {
       const refreshToken = req.cookies.refreshToken;
@@ -109,6 +129,18 @@ export class AuthController {
       const e = err as Error;
       console.error('[logout] error:', e);
       res.status(400).json({ error: e.message });
+    }
+  }
+*/
+  async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const refreshToken = req.body?.refreshToken ?? req.cookies?.refreshToken ?? null;
+      const personId = Number(req.body.personId);
+
+      await this.logoutUseCase.execute(refreshToken, personId);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
     }
   }
 
@@ -133,7 +165,7 @@ export class AuthController {
       res.status(400).json({ error: e.message });
     }
   }
-    // ─────────────────────────
+  // ─────────────────────────
   // SOCIAL LOGIN: GOOGLE
   // ─────────────────────────
   async loginWithGoogle(req: Request, res: Response): Promise<void> {
