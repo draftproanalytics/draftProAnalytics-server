@@ -18,18 +18,26 @@ export interface GameFilters {
   dateTo?: Date;
 }
 /** Minimal shape the playoff service needs from games */
+
+// Update in IGameRepository.ts
+
 export interface PlayoffGameSummary {
   id: number;
   seasonYear: number;
-  playoffConference: PlayoffConference | null;
-  playoffRound: PlayoffRound | null;
   homeTeamId: number;
   awayTeamId: number;
-  homeSeed: number | null;
-  awaySeed: number | null;
   homeScore: number | null;
   awayScore: number | null;
   gameDate: Date | null;
+  playoffRound: 'WILDCARD' | 'DIVISIONAL' | 'CONFERENCE' | 'SUPERBOWL';
+  playoffConference: 'AFC' | 'NFC' | null;
+  homeSeed: number | null;
+  awaySeed: number | null;
+  // ✅ NEW: Team details
+  homeTeamName?: string;
+  awayTeamName?: string;
+  homeTeamConference?: string | null;
+  awayTeamConference?: string | null;
 }
 /**
  * Repository interface for Game entity

@@ -3,8 +3,6 @@ import type { IAccessControlRepository } from "../../domain/repositories/IAccess
 import { ForbiddenError, NotFoundError, ValidationError } from "../../domain/access.errors";
 import { GetMyAccessContextUseCase } from "./GetMyAccessContextUseCase";
 
-const PUBLIC_RID = 1;
-
 export class AssumeRoleUseCase {
   public constructor(
     private readonly repo: IAccessControlRepository,
@@ -19,17 +17,12 @@ export class AssumeRoleUseCase {
     const person = await this.repo.getPersonWithActiveRole(personId);
     if (!person) throw new NotFoundError(`Person ${personId} not found.`);
 
-    const fromRid = person.activeRid ?? PUBLIC_RID;
-
+    // ✅ Self-switch rule: only require assignment
     const assigned = await this.repo.isRoleAssignedToPerson(personId, toRid);
     if (!assigned) throw new ForbiddenError("Requested role is not assigned to this user.");
 
-    const allowed = await this.repo.isAssumeAllowed(fromRid, toRid);
-    if (!allowed) throw new ForbiddenError("Role switch is not allowed by RoleAssumeRule.");
-
     await this.repo.setActiveRole(personId, toRid);
 
-    // Return full refreshed context (client uses this immediately)
     return this.getMe.execute(personId);
   }
 }

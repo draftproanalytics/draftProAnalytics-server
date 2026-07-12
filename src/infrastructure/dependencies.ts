@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client'
 import { prisma } from "@/infrastructure/database/prisma";
 
 /* ───────────────────────────────────────────────────────────────
@@ -16,6 +15,9 @@ import { RefreshTokenUseCase } from '@/application/auth/refresh/RefreshTokenUseC
 import { LogoutUseCase } from '@/application/auth/logout/LogoutUseCase'
 import { ForgotPasswordUseCase } from '@/application/auth/forgot-password/ForgotPasswordUseCase'
 import { ResetPasswordUseCase } from '@/application/auth/reset-password/ResetPasswordUseCase'
+
+import type { AuthTokenService } from '@/domain/auth/services/AuthTokenService';
+import { LoginWithGoogleUseCase } from '@/application/auth/login/LoginWithGoogleUseCase';
 
 /* ───────────────────────────────────────────────────────────────
  * Repositories – Domain + Job
@@ -65,6 +67,12 @@ import { ScheduleJobService } from '@/application/jobs/services/ScheduleJobServi
 import { registerAppJobHandlers } from '@/infrastructure/queue/registerAppJobHandlers'
 import { buildDraftOrderComposition } from '@/modules/draftOrder/moduleComposition'
 import { JwtTokenService } from '@/modules/auth/infrastructure/security/JwtTokenService';
+import { LoginWithAppleUseCase } from '@/application/auth/login/loginWithAppleUseCase';
+import { AppleAuthServiceImpl } from './auth/AppleAuthServiceImpl';
+import { GoogleAuthServiceImpl } from './auth/GoogleAuthServiceImpl';
+import { PrismaPersonIdentityRepository } from './repositories/PrismaPersonIdentityRepository';
+import { JwtAuthTokenService } from './jwt/JwtAuthTokenService';
+import { BcryptPasswordHasher } from './auth/BcryptPasswordHasher';
 
 /* ───────────────────────────────────────────────────────────────
  * 1) Core infrastructure
@@ -128,18 +136,40 @@ const scheduleJobService = new ScheduleJobService(cronScheduler)
  * 6) Auth
  * ─────────────────────────────────────────────────────────────── */
 export const personRepo = new PrismaPersonRepository()
-export const passwordHasher = new Argon2PasswordHasher()
+export const passwordHasher = new BcryptPasswordHasher()
 export const tokenGen = new NodeCryptoSecureTokenGenerator()
 export const jwtTokens = new JwtTokenService()
 export const mailer = createMailService()
 
-export const registerUseCase = new RegisterUseCase(personRepo, passwordHasher, tokenGen, mailer)
-export const resetPasswordUseCase = new ResetPasswordUseCase(personRepo, passwordHasher)
-export const verifyEmailUseCase = new VerifyEmailUseCase(personRepo)
-export const loginUseCase = new LoginUseCase(personRepo, passwordHasher, jwtTokens)
-export const refreshTokenUseCase = new RefreshTokenUseCase(personRepo, passwordHasher, jwtTokens)
-export const logoutUseCase = new LogoutUseCase(personRepo, passwordHasher)
-export const forgotPasswordUseCase = new ForgotPasswordUseCase(personRepo, tokenGen, mailer)
+const registerUseCase = new RegisterUseCase(personRepo, passwordHasher, tokenGen, mailer)
+const resetPasswordUseCase = new ResetPasswordUseCase(personRepo, passwordHasher)
+const verifyEmailUseCase = new VerifyEmailUseCase(personRepo)
+const loginUseCase = new LoginUseCase(personRepo, passwordHasher, jwtTokens)
+const refreshTokenUseCase = new RefreshTokenUseCase(personRepo, passwordHasher, jwtTokens)
+const logoutUseCase = new LogoutUseCase(personRepo, passwordHasher)
+const forgotPasswordUseCase = new ForgotPasswordUseCase(personRepo, tokenGen, mailer)
+
+// after you create prisma, personRepo, passwordHasher, tokenService, etc.
+const personIdentityRepo = new PrismaPersonIdentityRepository(prisma);
+const googleAuthService = new GoogleAuthServiceImpl(process.env.GOOGLE_CLIENT_ID!);
+const appleAuthService = new AppleAuthServiceImpl();
+const authTokenService = new JwtAuthTokenService();
+
+const loginWithGoogleUseCase = new LoginWithGoogleUseCase(
+  personRepo,
+  personIdentityRepo,
+  googleAuthService,
+  authTokenService,
+  passwordHasher,
+);
+
+const loginWithAppleUseCase = new LoginWithAppleUseCase(
+  personRepo,
+  personIdentityRepo,
+  appleAuthService,
+  authTokenService,
+  passwordHasher,
+);
 
 /* ───────────────────────────────────────────────────────────────
  * 7) Export
@@ -174,4 +204,15 @@ export {
   getJobDetailService,
   getJobLogsService,
   scheduleJobService,
+
+  loginUseCase,
+  logoutUseCase,
+  loginWithAppleUseCase,
+  loginWithGoogleUseCase,
+  registerUseCase,
+  resetPasswordUseCase,
+  verifyEmailUseCase,
+  refreshTokenUseCase,
+  forgotPasswordUseCase,
+
 }

@@ -15,15 +15,19 @@ export class DraftPick {
     public readonly playerId?: number,
     public readonly used: boolean = false,
     public readonly createdAt?: Date,
-    public readonly updatedAt?: Date
+    public readonly updatedAt?: Date,
+    public draftEventId?: number,
+    public pickInRound?: number
   ) {}
 
   static fromDatabase(data: any): DraftPick {
     return new DraftPick(
       data.id,
       data.round,
+      data.pickInRound,
       data.pickNumber,
       data.draftYear,
+      data.draftEventId,
       data.currentTeamId,
       data.originalTeam,
       data.prospectId,

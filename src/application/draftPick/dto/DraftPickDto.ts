@@ -2,6 +2,8 @@
 export interface CreateDraftPickDto {
   round: number;
   pickNumber: number;
+  pickInRound: number;
+  draftEventId: number;
   draftYear: number;
   currentTeamId: number;
   prospectId?: number | null;
@@ -14,6 +16,8 @@ export interface CreateDraftPickDto {
 
 export interface UpdateDraftPickDto {
   round?: number;
+  pickInRound: number;
+  draftEventId: number;  
   pickNumber?: number;
   draftYear?: number;
   currentTeamId?: number;
@@ -29,6 +33,8 @@ export interface DraftPickResponseDto {
   id: number;
   round: number;
   pickNumber: number;
+  pickInRound: number;
+  draftEventId: number;  
   draftYear: number;
   currentTeamId: number;
   prospectId?: number | null;

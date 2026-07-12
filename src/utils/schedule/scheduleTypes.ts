@@ -1,9 +1,9 @@
 // src/utils/schedule/scheduleTypes.ts
 
-export type GameStatus = 'Scheduled' | 'In Progress' | 'Final' | 'Postponed';
+export type GameStatus = 'Scheduled' | 'In Progress' | 'Final' | 'Canceled' | 'Postponed';
 export type PrimetimeType = 'TNF' | 'SNF' | 'MNF' | null;
 
-export type PlayoffRound = 'WILD_CARD' | 'DIVISIONAL' | 'CONFERENCE' | 'SUPER_BOWL'
+export type PlayoffRound = 'WILDCARD' | 'DIVISIONAL' | 'CONFERENCE' | 'SUPERBOWL'
 export type PlayoffConference = 'AFC' | 'NFC'
 
 export interface WeekScheduleDTO {

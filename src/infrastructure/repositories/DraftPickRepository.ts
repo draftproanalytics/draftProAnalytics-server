@@ -2,7 +2,8 @@
 
 import { DraftPickWithRelationsDto } from '@/application/draftPick/dto/DraftPickDto';
 import { DraftPick } from '@/domain/draft/entity/DraftPick';
-import { PrismaClient } from '@prisma/client';
+import { DraftPick_status, PrismaClient } from '@prisma/client';
+import { resolveDraftPickDefaults } from './helpers/resolveDraftPickDefaults';
 
 export class DraftPickRepository {
   constructor(private prisma: PrismaClient) {}
@@ -92,16 +93,29 @@ export class DraftPickRepository {
   }
 
   async create(draftPick: Omit<DraftPick, 'id'>): Promise<DraftPick> {
+    const defaults = await resolveDraftPickDefaults(
+      this.prisma,
+      draftPick.draftYear,
+      draftPick.round,
+      draftPick.pickInRound
+    );
+
     const created = await this.prisma.draftPick.create({
       data: {
+        draftEventId: draftPick.draftEventId ?? defaults.draftEventId,
         round: draftPick.round,
+        pickInRound:
+          draftPick.pickInRound && draftPick.pickInRound > 0
+            ? draftPick.pickInRound
+            : defaults.pickInRound,
         pickNumber: draftPick.pickNumber,
         draftYear: draftPick.draftYear,
         currentTeamId: draftPick.currentTeamId,
-        originalTeam: draftPick.originalTeam || null,
-        prospectId: draftPick.prospectId || null,
-        playerId: draftPick.playerId || null,
-        used: draftPick.used || false,
+        originalTeam: draftPick.originalTeam ?? draftPick.currentTeamId,
+        prospectId: draftPick.prospectId ?? null,
+        playerId: draftPick.playerId ?? null,
+        used: draftPick.used ?? false,
+        status: draftPick.used ? DraftPick_status.PICKED : DraftPick_status.SCHEDULED,
       },
     });
 

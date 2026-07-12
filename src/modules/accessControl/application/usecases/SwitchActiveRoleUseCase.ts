@@ -15,19 +15,16 @@ export class SwitchActiveRoleUseCase {
 
     const person = await this.repo.getPersonWithActiveRole(personId);
     if (!person) throw new NotFoundError(`Person ${personId} not found.`);
-    if (!person.activeRid) throw new ValidationError("Person has no activeRid set.");
 
     const toRole = await this.repo.getRoleByName(trimmed);
     if (!toRole) throw new NotFoundError(`Role '${trimmed}' not found.`);
-    const toRoleId = toRole.rid;
+    const toRid = toRole.rid;
 
-    const assigned = await this.repo.isRoleAssignedToPerson(personId, toRoleId);
+    // ✅ Self-switch rule: only require assignment
+    const assigned = await this.repo.isRoleAssignedToPerson(personId, toRid);
     if (!assigned) throw new ForbiddenError(`Role '${trimmed}' is not assigned to this user.`);
 
-    const allowed = await this.repo.isAssumeAllowed(person.activeRid, toRoleId);
-    if (!allowed) throw new ForbiddenError(`Not allowed to switch from active role to '${trimmed}'.`);
-
-    await this.repo.setActiveRole(personId, toRoleId);
+    await this.repo.setActiveRole(personId, toRid);
 
     return this.getContext.execute(personId);
   }

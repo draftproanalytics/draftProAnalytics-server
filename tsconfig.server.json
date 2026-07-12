@@ -11,8 +11,12 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "types": ["node"],
+    "typeRoots": ["./node_modules/@types", "./src/shared/types"],
     "experimentalDecorators": true
   },
-   "include": ["src/**/*.ts", "src/**/*.d.ts"],
+   "include": [
+    "src/**/*.ts",
+    "src/shared/presentation/types/*.d.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

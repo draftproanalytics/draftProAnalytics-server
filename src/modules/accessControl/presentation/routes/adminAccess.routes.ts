@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import type { RequestHandler } from "express";
 
 import { requireAuth } from "@/shared/presentation/http/middleware/requireAuth.middleware";
-import { requireRbacEditOrAdminRole4 } from "../requireRbacEditOrAdminRole4";
+import { requireRbacEditOrAdminRole4 } from "../security/requireRbacEditOrAdminRole4";
 
 import { PrismaAccessControlRepository } from "../../infrastructure/persistence/prisma/PrismaAccessControlRepository";
 import { ListAccessUsersUseCase } from "../../application/usecases/ListAccessUsersUseCase";

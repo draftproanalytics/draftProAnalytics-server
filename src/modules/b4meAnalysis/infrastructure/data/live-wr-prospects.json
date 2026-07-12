@@ -1,0 +1,63 @@
+[
+  {
+    "playerName": "Denzel Boston",
+    "firstName": "Denzel",
+    "lastName": "Boston",
+    "school": "Washington",
+    "draftYear": 2026,
+    "position": "WR",
+    "sourceMetadata": {
+      "provider": "HYBRID_PUBLIC",
+      "playerSearchName": "Denzel Boston",
+      "resolvedPlayerName": "Denzel Boston",
+      "draftYear": 2026,
+      "sourcesUsed": ["Local file fallback"],
+      "derivedFields": [
+        "pffOverallGrade",
+        "contestedCatchRate",
+        "behindLosTargetRate",
+        "missedTacklesForcedPerReception",
+        "yacAfterContactPerReception",
+        "pressManWinRate",
+        "releasePackageDepth",
+        "routeFamilyDiversity",
+        "alignmentFlexibilityIndex",
+        "rolePortabilityIndex",
+        "usageAdaptabilityIndex",
+        "slotRate",
+        "wideRate",
+        "boundaryRate",
+        "routesRun"
+      ],
+      "injuryMissedGamesIsConfirmedOnly": true,
+      "notes": ["File-backed fallback record."]
+    },
+    "metrics": {
+      "yprr": 3.12,
+      "pffOverallGrade": 84.6,
+      "contestedCatchRate": 57.1,
+      "behindLosTargetRate": 12.4,
+      "receptions": 63,
+      "targets": 101,
+      "missedTacklesForcedPerReception": 0.14,
+      "yacAfterContactPerReception": 2.1,
+      "routesRun": 412,
+      "gamesPlayed": 13,
+      "gamesMissed": 0,
+      "competitionLevel": "POWER",
+      "offensiveContextNotes": "Washington public-data fallback record.",
+      "qbPlayQuality": 0.61,
+      "pffRank": null,
+      "yprrRank": null,
+      "pressManWinRate": 0.56,
+      "releasePackageDepth": 3,
+      "routeFamilyDiversity": 7,
+      "alignmentFlexibilityIndex": 6,
+      "rolePortabilityIndex": 7,
+      "usageAdaptabilityIndex": 6,
+      "slotRate": 18,
+      "wideRate": 82,
+      "boundaryRate": 71
+    }
+  }
+]

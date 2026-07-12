@@ -9,14 +9,18 @@ import { registerAccessControlModule } from "@/modules/accessControl/infrastruct
 import { apiRoutes } from './presentation/routes';
 import { errorHandler } from './presentation/middleware/errorHandler';
 import { prisma } from "@/infrastructure/database/prisma";
-import { buildAdminAccessRouter } from './modules/accessControl/presentation/routes/adminAccess.routes';
-import { buildAccessRoutes } from "@/modules/accessControl/presentation/routes/access.routes";
+import { createB4MeAnalysisRouter } from './modules/b4meAnalysis/presentation/routes/b4meAnalysis.routes';
+import { createB4MeImportRouter } from './modules/b4meImport/presentation/routes/b4meImport.routes';
+import { createDraftDayScorecardModule } from './modules/draftDayScorecard/draftDayScorecard.module';
+import { buildDpaApiRouter } from './presentation/routes/buildDpaApiRouter';
+import { createDraftDayScorecardRouter } from './modules/draftDayScorecard/presentation/routes/draftDayScorecard.routes';
+import { createDpaJobsNflImportRouter } from '@/modules/jobs/presentation/routes/dpaJobsNflImport.routes';
+
 
 const app = express();
 
 const db = prisma;
 registerAccessControlModule();
-
 
 
 // Security middleware
@@ -31,9 +35,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // API routes
+
+app.use('/api/b4me', createB4MeAnalysisRouter(prisma));
+app.use('/api/b4me-import', createB4MeImportRouter(prisma));
+app.use('/api/jobs', createDpaJobsNflImportRouter(prisma));
+app.use('/api', buildDpaApiRouter(prisma));
+
+app.use('/api/draft-day-scorecard',createDraftDayScorecardRouter(prisma));
 app.use(`/api`, apiRoutes);
-app.use("/api/access", buildAccessRoutes(db));
-app.use("/api/admin/access", buildAdminAccessRouter(db));
 // 404 handler — MUST come before errorHandler
 app.use('*', (req, res, next) => {
   const err: any = new Error('Route not found');
@@ -60,4 +69,5 @@ app._router.stack.forEach((middleware: any) => {
 console.log('🔍 All routes registered. Testing endpoint...');
 console.log('🧪 Test: curl http://localhost:5000/api/draftpicks/relations/team/1/year/2025');
 
+module.exports = app;
 export { app };

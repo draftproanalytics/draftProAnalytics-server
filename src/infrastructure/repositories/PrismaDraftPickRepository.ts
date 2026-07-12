@@ -7,6 +7,7 @@ import type {
   DraftPickQueryFilters 
 } from '../../application/draftPick/dto/DraftPickDto';
 import type { IDraftPickRepository } from './IDraftPickRepository';
+import { resolveDraftPickCreateDefaults } from './helpers/draftPickCreateDefaults';
 
 export class PrismaDraftPickRepository implements IDraftPickRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -16,6 +17,8 @@ export class PrismaDraftPickRepository implements IDraftPickRepository {
       data: {
         round: dto.round,
         pickNumber: dto.pickNumber,
+        pickInRound: dto.pickInRound,
+        draftEventId: dto.draftEventId,
         draftYear: dto.draftYear,
         currentTeamId: dto.currentTeamId,
         prospectId: dto.prospectId,

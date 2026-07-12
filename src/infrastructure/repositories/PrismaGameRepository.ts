@@ -363,47 +363,138 @@ export class PrismaGameRepository implements IGameRepository {
     return this.hydrateGameWithTeams(row);
   }
 
-  public async findPlayoffGamesBySeason(seasonYear: number): Promise<PlayoffGameSummary[]> {
-    const rows = await this.prisma.game.findMany({
-      where: {
-        seasonYear: String(seasonYear), // DB column is string
-        isPlayoff: true,
-      },
-      select: {
-        id: true,
-        // seasonYear: true, // we don’t actually need the DB value; we already know it
-        playoffConference: true,
-        playoffRound: true,
-        homeTeamId: true,
-        awayTeamId: true,
-        homeSeed: true,
-        awaySeed: true,
-        homeScore: true,
-        awayScore: true,
-        gameDate: true,
-        /* ✅ REQUIRED playoff fields 
-        isPlayoff: true,
-        playoffRound: true,
-        playoffConference: true,
-        homeSeed: true,
-        awaySeed: true, */
-      },
-      orderBy: [{ playoffRound: 'asc' }, { gameDate: 'asc' }],
-    });
+  // In PrismaGameRepository.ts
 
-    return rows.map((row) => ({
-      id: row.id,
-      seasonYear, // normalize to the numeric input, not the DB string
-      playoffConference: row.playoffConference as PlayoffConference | null,
-      playoffRound: row.playoffRound as PlayoffRound | null,
-      homeTeamId: row.homeTeamId,
-      awayTeamId: row.awayTeamId,
-      homeSeed: row.homeSeed,
-      awaySeed: row.awaySeed,
-      homeScore: row.homeScore,
-      awayScore: row.awayScore,
-      gameDate: row.gameDate,
-    }));
+  // In PrismaGameRepository.ts
+
+  // New method in PrismaGameRepository.ts
+
+  // Complete method in PrismaGameRepository.ts with Super Bowl handling
+
+  // Enhanced PrismaGameRepository.findPlayoffGamesBySeason with team names
+
+  async findPlayoffGamesBySeason(seasonYear: number): Promise<PlayoffGameSummary[]> {
+    // ✅ Query with team names and conferences
+    const games = await this.prisma.$queryRaw<any[]>`
+    -- All playoff games from database with team details
+    SELECT 
+      g.id,
+      g.seasonYear,
+      g.gameDate,
+      g.homeTeamId,
+      g.awayTeamId,
+      g.homeScore,
+      g.awayScore,
+      g.playoffRound,
+      g.homeSeed,
+      g.awaySeed,
+      ht.name AS homeTeamName,
+      ht.conference AS homeConf,
+      at.name AS awayTeamName,
+      at.conference AS awayConf
+    FROM Game g
+    JOIN Team ht ON ht.id = g.homeTeamId
+    JOIN Team at ON at.id = g.awayTeamId
+    WHERE g.seasonYear = ${String(seasonYear)}
+      AND g.seasonType = 3
+    
+    UNION ALL
+    
+    -- Computed Super Bowl from conference championship winners
+    SELECT
+      NULL AS id,
+      ${String(seasonYear)} AS seasonYear,
+      NULL AS gameDate,
+      CASE 
+        WHEN afc.homeScore > afc.awayScore THEN afc.homeTeamId
+        ELSE afc.awayTeamId
+      END AS homeTeamId,
+      CASE 
+        WHEN nfc.homeScore > nfc.awayScore THEN nfc.homeTeamId
+        ELSE nfc.awayTeamId
+      END AS awayTeamId,
+      NULL AS homeScore,
+      NULL AS awayScore,
+      'SUPERBOWL' AS playoffRound,
+      NULL AS homeSeed,
+      NULL AS awaySeed,
+      (SELECT t.name FROM Team t 
+       WHERE t.id = CASE WHEN afc.homeScore > afc.awayScore THEN afc.homeTeamId ELSE afc.awayTeamId END
+      ) AS homeTeamName,
+      (SELECT t.conference FROM Team t 
+       WHERE t.id = CASE WHEN afc.homeScore > afc.awayScore THEN afc.homeTeamId ELSE afc.awayTeamId END
+      ) AS homeConf,
+      (SELECT t.name FROM Team t 
+       WHERE t.id = CASE WHEN nfc.homeScore > nfc.awayScore THEN nfc.homeTeamId ELSE nfc.awayTeamId END
+      ) AS awayTeamName,
+      (SELECT t.conference FROM Team t 
+       WHERE t.id = CASE WHEN nfc.homeScore > nfc.awayScore THEN nfc.homeTeamId ELSE nfc.awayTeamId END
+      ) AS awayConf
+    FROM Game afc
+    CROSS JOIN Game nfc
+    WHERE afc.seasonYear = ${String(seasonYear)}
+      AND afc.seasonType = 3
+      AND afc.playoffRound = 'CONFERENCE'
+      AND (SELECT t.conference FROM Team t WHERE t.id = afc.homeTeamId) = 'AFC'
+      AND nfc.seasonYear = ${String(seasonYear)}
+      AND nfc.seasonType = 3
+      AND nfc.playoffRound = 'CONFERENCE'
+      AND (SELECT t.conference FROM Team t WHERE t.id = nfc.homeTeamId) = 'NFC'
+      AND afc.homeScore IS NOT NULL
+      AND afc.awayScore IS NOT NULL
+      AND nfc.homeScore IS NOT NULL
+      AND nfc.awayScore IS NOT NULL
+    
+    ORDER BY gameDate IS NULL, gameDate
+  `;
+
+    console.log(`🏈 [PrismaGameRepo] Found ${games.length} playoff games for ${seasonYear}`);
+
+    // Log first game for debugging
+    if (games.length > 0) {
+      console.log(
+        `   First game: ${games[0].awayTeamName} @ ${games[0].homeTeamName} (${games[0].awayScore}-${games[0].homeScore})`
+      );
+    }
+
+    return games.map((g) => {
+      const homeConf = String(g.homeConf || '')
+        .trim()
+        .toUpperCase();
+      const awayConf = String(g.awayConf || '')
+        .trim()
+        .toUpperCase();
+
+      return {
+        id: g.id,
+        seasonYear: Number(g.seasonYear),
+        homeTeamId: g.homeTeamId,
+        awayTeamId: g.awayTeamId,
+        homeScore: g.homeScore,
+        awayScore: g.awayScore,
+        gameDate: g.gameDate,
+        playoffRound: g.playoffRound as 'WILDCARD' | 'DIVISIONAL' | 'CONFERENCE' | 'SUPERBOWL',
+        playoffConference: (homeConf === awayConf && (homeConf === 'AFC' || homeConf === 'NFC')
+          ? homeConf
+          : null) as 'AFC' | 'NFC' | null,
+        homeSeed: g.homeSeed ?? null,
+        awaySeed: g.awaySeed ?? null,
+        // ✅ NEW: Include team names and conferences
+        homeTeamName: g.homeTeamName,
+        awayTeamName: g.awayTeamName,
+        homeTeamConference: homeConf || null,
+        awayTeamConference: awayConf || null,
+      };
+    });
+  }
+  private mapPrismaRoundToDomain(
+    round: string | null
+  ): 'WILDCARD' | 'DIVISIONAL' | 'CONFERENCE' | 'SUPERBOWL' {
+    if (round === 'WILDCARD') return 'WILDCARD';
+    if (round === 'DIVISIONAL') return 'DIVISIONAL';
+    if (round === 'CONFERENCE') return 'CONFERENCE';
+    if (round === 'SUPERBOWL') return 'SUPERBOWL';
+    return 'WILDCARD'; // fallback
   }
 
   // ---------- ESPN upsert ----------
