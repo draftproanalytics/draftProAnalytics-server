@@ -385,8 +385,6 @@ model data_quality_reports {
   @@index([quality_score], map: "idx_quality_score")
 }
 
-
-
 model player_draft_info {
   id             Int          @id @default(autoincrement())
   espn_player_id Int          @unique(map: "unique_player_draft")
@@ -593,14 +591,6 @@ model JobStep {
   @@index([jobId], map: "idx_JobStep_jobId")
   @@index([jobId, sortOrder], map: "idx_JobStep_job_sort")
   @@index([status], map: "idx_JobStep_status")
-}
-
-enum Job_status {
-  pending
-  in_progress
-  completed
-  failed
-  canceled
 }
 
 model espn_draft_picks {
@@ -1348,6 +1338,13 @@ model DraftPick_backup_before_2025_picknumber_fix {
   @@ignore
 }
 
+enum Job_status {
+  pending
+  in_progress
+  completed
+  failed
+  canceled
+}
 
 enum data_processing_jobs_job_type {
   PLAYER_SYNC
