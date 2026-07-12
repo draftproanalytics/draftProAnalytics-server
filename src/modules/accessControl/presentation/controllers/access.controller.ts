@@ -15,6 +15,13 @@ import { switchRoleSchema, assumeRoleSchema } from "../http/access.schemas";
 
 type UserShape = { sub?: unknown; personId?: unknown; pid?: unknown; id?: unknown; userId?: unknown };
 
+type AccessTokenIssuer = {
+  issueTokens(input: { personId: number; userName: string; activeRid: number }): {
+    accessToken: string;
+    accessExpiresInSec: number;
+  };
+};
+
 function extractPersonId(req: Request): number {
   const u = (req as unknown as { user?: unknown }).user;
   if (!u || typeof u !== "object") throw new NotAuthenticatedError();
@@ -37,6 +44,7 @@ export class AccessController {
     private readonly getMe: GetMyAccessContextUseCase,
     private readonly assumeRole: AssumeRoleUseCase,
     private readonly repo: IAccessControlRepository,
+    private readonly tokenIssuer: AccessTokenIssuer,
   ) {}
 
   // Canonical: GET /access/me
@@ -63,7 +71,17 @@ export class AccessController {
       if (!role) throw new NotFoundError(`Role '${roleName}' not found.`);
 
       const payload = await this.assumeRole.execute(personId, role.rid);
-      res.json(payload);
+      const tokens = this.tokenIssuer.issueTokens({
+        personId: payload.personId,
+        userName: payload.userName,
+        activeRid: payload.activeRid,
+      });
+
+      res.json({
+        ...payload,
+        accessToken: tokens.accessToken,
+        accessExpiresInSec: tokens.accessExpiresInSec,
+      });
     } catch (err: unknown) {
       this.handleError(res, err);
     }
@@ -76,7 +94,17 @@ export class AccessController {
       const parsed = assumeRoleSchema.parse(req.body);
 
       const payload = await this.assumeRole.execute(personId, parsed.toRid);
-      res.json(payload);
+      const tokens = this.tokenIssuer.issueTokens({
+        personId: payload.personId,
+        userName: payload.userName,
+        activeRid: payload.activeRid,
+      });
+
+      res.json({
+        ...payload,
+        accessToken: tokens.accessToken,
+        accessExpiresInSec: tokens.accessExpiresInSec,
+      });
     } catch (err: unknown) {
       this.handleError(res, err);
     }

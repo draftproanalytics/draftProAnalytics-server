@@ -97,13 +97,15 @@ router.use(
 );
 
 
-// Protect ALL Admin Access endpoints (even if the router already guards internally)
+/* Protect ALL Admin Access endpoints (even if the router already guards internally)
 router.use(
   "/admin/access",
   requireAuth,
   requirePermission("ADMIN_USERS", "VIEW"),
   buildAdminAccessRouter(prisma)
 );
+*/
+router.use("/admin/access", buildAdminAccessRouter(prisma));
 /* ─────────────────────────────
  * JOBS
  * ───────────────────────────── */

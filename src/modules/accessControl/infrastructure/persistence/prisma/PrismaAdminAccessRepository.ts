@@ -1,16 +1,26 @@
 import type { PrismaClient } from "@prisma/client";
- 
 
 import type { IAdminAccessRepository } from "../../../domain/repositories/IAdminAccessRepository";
-import type { AdminRoleDto, AdminUserDto } from "../../../application/dtos/AdminAccess.dto";
+import type {
+  AdminRoleDto,
+  AdminUserDto,
+} from "../../../application/dtos/AdminAccess.dto";
+
+const PUBLIC_RID = 1;
 
 export class PrismaAdminAccessRepository implements IAdminAccessRepository {
   public constructor(private readonly prisma: PrismaClient) {}
 
   public async listRoles(): Promise<AdminRoleDto[]> {
     const roles = await this.prisma.roles.findMany({
-      select: { rid: true, roleName: true },
-      orderBy: { roleName: "asc" },
+      where: { isActive: true },
+      select: {
+        rid: true,
+        roleName: true,
+      },
+      orderBy: {
+        rid: "asc",
+      },
     });
 
     return roles;
@@ -40,28 +50,32 @@ export class PrismaAdminAccessRepository implements IAdminAccessRepository {
         firstName: true,
         lastName: true,
         isActive: true,
-        Roles: {
-          // IMPORTANT: Roles is already the role model array, so select role fields directly
-          select: { rid: true, roleName: true },
-      //    orderBy: { roleName: "asc" },
+        activeRid: true,
+        PersonRole_PersonRole_personIdToPerson: {
+          where: {
+            isActive: true,
+            revokedAt: null,
+          },
+          select: {
+            Roles: {
+              select: {
+                rid: true,
+                roleName: true,
+              },
+            },
+          },
+          orderBy: {
+            roleId: "asc",
+          },
         },
       },
-      orderBy: { pid: "asc" },
+      orderBy: {
+        pid: "asc",
+      },
       take: 200,
     });
 
-    return people.map((p): AdminUserDto => {
-      const fullName = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
-
-      return {
-        pid: p.pid,
-        userName: p.userName,
-        emailAddress: p.emailAddress,
-        fullName,
-        isActive: Boolean(p.isActive),
-        roles: p.Roles ? [p.Roles] : [],
-      };
-    });
+    return people.map(p => this.toDto(p));
   }
 
   public async getUserByPid(pid: number): Promise<AdminUserDto> {
@@ -74,15 +88,97 @@ export class PrismaAdminAccessRepository implements IAdminAccessRepository {
         firstName: true,
         lastName: true,
         isActive: true,
-        Roles: {
-          select: { rid: true, roleName: true },
-     //     orderBy: { roleName: "asc" },
+        activeRid: true,
+        PersonRole_PersonRole_personIdToPerson: {
+          where: {
+            isActive: true,
+            revokedAt: null,
+          },
+          select: {
+            Roles: {
+              select: {
+                rid: true,
+                roleName: true,
+              },
+            },
+          },
+          orderBy: {
+            roleId: "asc",
+          },
         },
       },
     });
 
-    if (!p) throw new Error(`Person not found: ${pid}`);
+    if (!p) {
+      throw new Error(`Person not found: ${pid}`);
+    }
 
+    return this.toDto(p);
+  }
+
+  public async setUserRoles(pid: number, roleIds: number[]): Promise<void> {
+    const uniqueRoleIds = Array.from(new Set(roleIds));
+
+    // Always keep public. This prevents a user from having no valid role.
+    if (!uniqueRoleIds.includes(PUBLIC_RID)) {
+      uniqueRoleIds.push(PUBLIC_RID);
+    }
+
+    uniqueRoleIds.sort((a, b) => a - b);
+
+    await this.prisma.$transaction(async tx => {
+      const person = await tx.person.findUnique({
+        where: { pid },
+        select: { activeRid: true },
+      });
+
+      if (!person) {
+        throw new Error(`Person not found: ${pid}`);
+      }
+
+      await tx.personRole.deleteMany({
+        where: { personId: pid },
+      });
+
+      await tx.personRole.createMany({
+        data: uniqueRoleIds.map(roleId => ({
+          personId: pid,
+          roleId,
+          assignedByPersonId: null,
+          isActive: true,
+        })),
+        skipDuplicates: true,
+      });
+
+      const nextActiveRid =
+        person.activeRid && uniqueRoleIds.includes(person.activeRid)
+          ? person.activeRid
+          : PUBLIC_RID;
+
+      await tx.person.update({
+        where: { pid },
+        data: {
+          activeRid: nextActiveRid,
+        },
+      });
+    });
+  }
+
+  private toDto(p: {
+    pid: number;
+    userName: string;
+    emailAddress: string;
+    firstName: string | null;
+    lastName: string | null;
+    isActive: boolean | null;
+    activeRid: number | null;
+    PersonRole_PersonRole_personIdToPerson: Array<{
+      Roles: {
+        rid: number;
+        roleName: string;
+      };
+    }>;
+  }): AdminUserDto {
     const fullName = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
 
     return {
@@ -91,21 +187,7 @@ export class PrismaAdminAccessRepository implements IAdminAccessRepository {
       emailAddress: p.emailAddress,
       fullName,
       isActive: Boolean(p.isActive),
-      roles: p.Roles ? [p.Roles] : [],
+      roles: p.PersonRole_PersonRole_personIdToPerson.map(row => row.Roles),
     };
-  }
-
-  public async setUserRoles(pid: number, roleIds: number[]): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      // IMPORTANT: join table uses personId/roleId (per your compile error)
-      await tx.personRole.deleteMany({ where: { personId: pid } });
-
-      if (roleIds.length > 0) {
-        await tx.personRole.createMany({
-          data: roleIds.map((roleId) => ({ personId: pid, roleId })),
-          skipDuplicates: true,
-        });
-      }
-    });
   }
 }

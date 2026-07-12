@@ -3,8 +3,11 @@ import type { IPersonRepository } from "@/domain/person/repositories/IPersonRepo
 import type { PasswordHasher } from "@/domain/auth/services/PasswordHasher";
 import type { LoginInputDTO, LoginResponseDTO } from "./LoginDTO";
 import { JwtTokenService } from "@/modules/auth/infrastructure/security/JwtTokenService";
+import { createLogger } from "@/utils/Logger";
 
 export class LoginUseCase {
+  private logger = createLogger("LoginUseCase");
+
   constructor(
     private readonly personRepo: IPersonRepository,
     private readonly hasher: PasswordHasher,
@@ -13,6 +16,8 @@ export class LoginUseCase {
 
   public async execute(input: LoginInputDTO): Promise<LoginResponseDTO> {
     const { userName, password } = input;
+    const devBypassEmailVerification = this.isEnabledDevFlag("DEV_BYPASS_EMAIL_VERIFICATION");
+    const suppressRegistrationEmail  = this.isEnabledDevFlag("DEV_SUPPRESS_REGISTRATION_EMAIL");
 
     // 1) Find user
     const person = await this.personRepo.findByUserName(userName);
@@ -25,7 +30,11 @@ export class LoginUseCase {
     }
 
     // 2) Optional: require verified email
-    if (!person.emailVerified) {
+    if (devBypassEmailVerification) {
+      this.logger.warn(
+        `DEV_BYPASS_EMAIL_VERIFICATION=true; skipping verification token/email for pid=${person.pid}`
+      );          
+    }else if (!person.emailVerified) {
       throw new Error("Email not verified");
     }
 
@@ -54,5 +63,8 @@ export class LoginUseCase {
       userName: person.userName,
       activeRid: effectiveActiveRid,
     };
+  }
+  private isEnabledDevFlag(name: string): boolean {
+    return process.env.NODE_ENV !== "production" && process.env[name] === "true";
   }
 }

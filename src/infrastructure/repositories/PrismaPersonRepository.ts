@@ -1,6 +1,6 @@
 // src/infrastructure/repositories/PrismaPersonRepository.ts
 import { PrismaClient } from '@prisma/client';
-import { Prisma } from "@prisma/client";
+import { Prisma } from '@prisma/client';
 import { IPersonRepository } from '@/domain/person/repositories/IPersonRepository';
 import { PersonFilters } from '@/domain/person/repositories/PersonFilters';
 import { Person } from '@/domain/person/entities/Person';
@@ -12,10 +12,13 @@ import { RefreshTokenDTO } from '@/domain/auth/dtos/RefreshTokenDTO';
 
 import { PaginationParams, PaginatedResponse } from '@/shared/types/common';
 
-import { prisma } from "@/infrastructure/database/prisma";
+import { prisma } from '@/infrastructure/database/prisma';
 import { PersonMapper } from '@/domain/person/mapper/PersonMapper';
+import { createLogger } from '@/utils/Logger';
 
 export class PrismaPersonRepository implements IPersonRepository {
+  private logger = createLogger('PrismaPersonRepository');
+
   constructor(private readonly db: PrismaClient = prisma) {}
 
   // ───────────────────────────────────────────
@@ -96,6 +99,7 @@ export class PrismaPersonRepository implements IPersonRepository {
     const record = await this.db.person.findFirst({
       where: { userName },
     });
+    this.logger.debug('Person found: ' + record?.firstName + ' ' + record?.lastName);
     return record ? Person.fromPersistence(record) : null;
   }
 
@@ -118,21 +122,51 @@ export class PrismaPersonRepository implements IPersonRepository {
   // PERSON: create / update / delete
   // ───────────────────────────────────────────
   async createPerson(input: NewPersonInput): Promise<Person> {
-    const record = await this.db.person.create({
-      data: {
-        userName: input.userName,
-        emailAddress: input.emailAddress,
-        passwordHash: input.passwordHash,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        // Only include rid if it exists in your Prisma schema
-        // Remove this line if rid doesn't exist in the schema
-        // rid: input.rid ?? undefined,
-        //       isActive: true,
-        emailVerified: false,
-        //       createdAt: new Date(),
-        //       updatedAt: new Date()
-      },
+    const publicRid = input.activeRid ?? 1;
+
+    const record = await this.db.$transaction(async (tx) => {
+      const publicRole = await tx.roles.findUnique({
+        where: {
+          rid: publicRid,
+        },
+        select: {
+          rid: true,
+          roleName: true,
+          isActive: true,
+        },
+      });
+
+      if (!publicRole) {
+        throw new Error(`Default role rid=${publicRid} does not exist`);
+      }
+
+      if (publicRole.isActive === false) {
+        throw new Error(`Default role rid=${publicRid} is inactive`);
+      }
+
+      const created = await tx.person.create({
+        data: {
+          userName: input.userName,
+          emailAddress: input.emailAddress,
+          passwordHash: input.passwordHash,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          activeRid: publicRid,
+          isActive: true,
+          emailVerified: false,
+        },
+      });
+
+      await tx.personRole.create({
+        data: {
+          personId: created.pid,
+          roleId: publicRid,
+          assignedByPersonId: null,
+          isActive: true,
+        },
+      });
+
+      return created;
     });
 
     return Person.fromPersistence(record);

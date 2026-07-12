@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 
 import { requireAuth } from "@/shared/presentation/http/middleware/requireAuth.middleware";
+import { JwtTokenService } from "@/modules/auth/infrastructure/security/JwtTokenService";
 
 import { PrismaAccessControlRepository } from "../../infrastructure/persistence/prisma/PrismaAccessControlRepository";
 import { GetMyAccessContextUseCase } from "../../application/usecases/GetMyAccessContextUseCase";
@@ -13,9 +14,10 @@ export function buildAccessRoutes(db: PrismaClient): Router {
 
   const repo = new PrismaAccessControlRepository(db);
   const getMe = new GetMyAccessContextUseCase(repo);
-  const assumeRole = new AssumeRoleUseCase(repo,getMe);
+  const assumeRole = new AssumeRoleUseCase(repo, getMe);
+  const tokenService = new JwtTokenService();
 
-  const ctrl = new AccessController(getMe, assumeRole, repo);
+  const ctrl = new AccessController(getMe, assumeRole, repo, tokenService);
 
   // canonical
   r.get("/me", requireAuth, ctrl.getMyAccess);
