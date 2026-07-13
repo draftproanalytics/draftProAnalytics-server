@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "clean": "rimraf dist",
-    "build": "tsc -p tsconfig.server.json && echo \"✅ build ok\" && ls -la dist | head",
+    "build": "tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json && echo \"✅ build ok\" && ls -la dist | head",
     "start": "node dist/index.js",
     "dev:orig": "ts-node src/index.ts",
     "dev": "NODE_ENV=development nodemon --exec ts-node -r tsconfig-paths/register -P tsconfig.server.json src/index.ts",

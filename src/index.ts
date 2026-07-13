@@ -1,5 +1,6 @@
 import path from 'node:path';
 import dotenv from 'dotenv';
+import { createDpaJobsNflImportRouter } from './modules/jobs/presentation/routes/dpaJobsNflImport.routes';
 
 const envPath = path.resolve(process.cwd(), '.env');
 const result = dotenv.config({
@@ -81,10 +82,10 @@ app.get("/health", (_req, res) => {
 });
 
 // ---- routes
-app.use(API_BASE, apiRoutes);
+app.use('/api/jobs',createDpaJobsNflImportRouter(prisma), );
 app.use('/api/b4me', createB4MeAnalysisRouter(prisma));
 app.use('/api/b4me-import', createB4MeImportRouter(prisma));
-
+app.use(API_BASE, apiRoutes);
 // ---- list all registered routes (debugging only)
 console.log("Registered routes:");
 ;(app._router?.stack || [])
