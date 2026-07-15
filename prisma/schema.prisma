@@ -154,8 +154,8 @@ model PlayerTeam {
   id             Int     @id @default(autoincrement())
   playerId       Int
   teamId         Int
-  position       String? @db.VarChar(10)
   currentTeam    Boolean @default(false)
+  position       String? @db.VarChar(10)
   jerseyNumber   Int?
   contractValue  Int?
   contractLength Int?

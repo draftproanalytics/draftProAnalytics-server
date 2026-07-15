@@ -4,6 +4,8 @@ import type { PrismaClient } from '@prisma/client';
 import { EnqueueImportNflGameScoresJobUseCase } from '../../application/use-cases/EnqueueImportNflGameScoresJobUseCase';
 import { EnqueueLoadEspnDraftClassPlayersJobUseCase } from '../../application/use-cases/EnqueueLoadEspnDraftClassPlayersJobUseCase';
 import { EnqueueLoadEspnDraftResultsJobUseCase } from '../../application/use-cases/EnqueueLoadEspnDraftResultsJobUseCase';
+import { EnqueueEnrichPlayerTeamPositionsJobUseCase } from '../../application/use-cases/EnqueueEnrichPlayerTeamPositionsJobUseCase';
+import { EnqueueLoadEspnTeamRostersJobUseCase } from '../../application/use-cases/EnqueueLoadEspnTeamRostersJobUseCase';
 import { EnqueueLoadNflSeasonScheduleJobUseCase } from '../../application/use-cases/EnqueueLoadNflSeasonScheduleJobUseCase';
 import { ListDpaJobsUseCase } from '../../application/use-cases/ListDpaJobsUseCase';
 import { ReadDpaJobUseCase } from '../../application/use-cases/ReadDpaJobUseCase';
@@ -13,12 +15,16 @@ import { DpaJobQueueProcessor } from '../../application/services/DpaJobQueueProc
 import { ImportNflGameScoresJobHandler } from '../../application/services/ImportNflGameScoresJobHandler';
 import { LoadEspnDraftClassPlayersJobHandler } from '../../application/services/LoadEspnDraftClassPlayersJobHandler';
 import { LoadEspnDraftResultsJobHandler } from '../../application/services/LoadEspnDraftResultsJobHandler';
+import { EnrichPlayerTeamPositionsJobHandler } from '../../application/services/EnrichPlayerTeamPositionsJobHandler';
+import { LoadEspnTeamRostersJobHandler } from '../../application/services/LoadEspnTeamRostersJobHandler';
 import { LoadNflSeasonScheduleJobHandler } from '../../application/services/LoadNflSeasonScheduleJobHandler';
 import { EspnDraftProvider } from '../../infrastructure/external/EspnDraftProvider';
+import { EspnRosterProvider } from '../../infrastructure/external/EspnRosterProvider';
 import { EspnNflScheduleProvider } from '../../infrastructure/external/EspnNflScheduleProvider';
 import { PrismaDpaTeamIdentityResolver } from '../../infrastructure/persistence/PrismaDpaTeamIdentityResolver';
 import { PrismaGameScheduleRepository } from '../../infrastructure/persistence/PrismaGameScheduleRepository';
 import { PrismaEspnDraftImportRepository } from '../../infrastructure/persistence/PrismaEspnDraftImportRepository';
+import { PrismaEspnRosterImportRepository } from '../../infrastructure/persistence/PrismaEspnRosterImportRepository';
 import { PrismaJobQueueRepository } from '../../infrastructure/persistence/PrismaJobQueueRepository';
 import { DpaJobsNflImportController } from '../controllers/DpaJobsNflImportController';
 
@@ -31,7 +37,9 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   const jobQueueRepository = new PrismaJobQueueRepository(prisma);
   const nflScheduleProvider = new EspnNflScheduleProvider();
   const espnDraftProvider = new EspnDraftProvider();
+  const espnRosterProvider = new EspnRosterProvider();
   const espnDraftImportRepository = new PrismaEspnDraftImportRepository(prisma);
+  const espnRosterImportRepository = new PrismaEspnRosterImportRepository(prisma);
   const teamIdentityResolver = new PrismaDpaTeamIdentityResolver(prisma);
   const gameScheduleRepository = new PrismaGameScheduleRepository(prisma, teamIdentityResolver);
 
@@ -49,6 +57,8 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
 
   const loadEspnDraftClassPlayersJobHandler = new LoadEspnDraftClassPlayersJobHandler(jobQueueRepository, espnDraftProvider, espnDraftImportRepository);
   const loadEspnDraftResultsJobHandler = new LoadEspnDraftResultsJobHandler(jobQueueRepository, espnDraftProvider, espnDraftImportRepository);
+  const enrichPlayerTeamPositionsJobHandler = new EnrichPlayerTeamPositionsJobHandler(jobQueueRepository, espnDraftProvider, espnDraftImportRepository);
+  const loadEspnTeamRostersJobHandler = new LoadEspnTeamRostersJobHandler(jobQueueRepository, espnRosterProvider, espnRosterImportRepository);
 
   const jobQueueProcessor = new DpaJobQueueProcessor(
     jobQueueRepository,
@@ -56,6 +66,8 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
     importNflGameScoresJobHandler,
     loadEspnDraftClassPlayersJobHandler,
     loadEspnDraftResultsJobHandler,
+    enrichPlayerTeamPositionsJobHandler,
+    loadEspnTeamRostersJobHandler,
   );
 
   const controller = new DpaJobsNflImportController(
@@ -63,6 +75,8 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
     new EnqueueImportNflGameScoresJobUseCase(jobQueueRepository),
     new EnqueueLoadEspnDraftClassPlayersJobUseCase(jobQueueRepository),
     new EnqueueLoadEspnDraftResultsJobUseCase(jobQueueRepository),
+    new EnqueueEnrichPlayerTeamPositionsJobUseCase(jobQueueRepository),
+    new EnqueueLoadEspnTeamRostersJobUseCase(jobQueueRepository),
     new ProcessDpaJobQueueUseCase(jobQueueProcessor),
     new ListDpaJobsUseCase(jobQueueRepository),
     new ReadDpaJobUseCase(jobQueueRepository),
@@ -78,6 +92,8 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   router.post('/imports/nfl-game-scores', controller.enqueueImportNflGameScores);
   router.post('/imports/espn-draft-class-players', controller.enqueueLoadEspnDraftClassPlayers);
   router.post('/imports/espn-draft-results', controller.enqueueLoadEspnDraftResults);
+  router.post('/imports/player-team-positions', controller.enqueueEnrichPlayerTeamPositions);
+  router.post('/imports/espn-team-rosters', controller.enqueueLoadEspnTeamRosters);
   router.post('/queue/process', controller.processQueue);
   router.post('/:jobId/cancel', controller.cancelJob);
 

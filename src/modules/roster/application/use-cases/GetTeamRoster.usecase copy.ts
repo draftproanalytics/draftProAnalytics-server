@@ -1,18 +1,10 @@
-// src/modules/roster/application/use-cases/GetTeamRoster.usecase.ts
-
 import type { TeamRosterPlayerDto } from '../dto/teamRosterPlayer.dto'
 import type { ITeamRosterRepository } from '../../domain/repositories/ITeamRosterRepository'
 
 export class GetTeamRosterUseCase {
-  public constructor(
-    private readonly teamRosterRepository: ITeamRosterRepository,
-  ) {}
+  public constructor(private readonly teamRosterRepository: ITeamRosterRepository) {}
 
   public async execute(teamId: number): Promise<TeamRosterPlayerDto[]> {
-    if (!Number.isInteger(teamId) || teamId <= 0) {
-      throw new Error('A valid teamId is required')
-    }
-
     return this.teamRosterRepository.findCurrentByTeamId(teamId)
   }
 }

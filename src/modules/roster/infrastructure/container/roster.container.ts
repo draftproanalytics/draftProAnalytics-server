@@ -3,6 +3,7 @@
 import { PrismaClient } from '@prisma/client'
 import { IRosterPlayerRepository } from '../../domain/repositories/IRosterPlayerRepository'
 import { PrismaRosterPlayerRepository } from '../repositories/PrismaRosterPlayerRepository'
+import { PrismaTeamRosterRepository } from '../repositories/PrismaTeamRosterRepository'
 import { RosterPlayerDomainService } from '../../domain/services/RosterPlayerDomainService'
 import { RosterAnalysisService } from '../../application/services/RosterAnalysisService'
 import { ESPNPlayerService } from '../external/ESPNPlayerService'
@@ -73,7 +74,7 @@ export class RosterContainer {
       this._rosterPlayerRepository
     )
     this._getTeamRosterUseCase = new GetTeamRosterUseCase(
-      this._rosterPlayerRepository
+      new PrismaTeamRosterRepository(prisma)
     )
     this._getTeamStartersUseCase = new GetTeamStartersUseCase(
       this._rosterPlayerRepository

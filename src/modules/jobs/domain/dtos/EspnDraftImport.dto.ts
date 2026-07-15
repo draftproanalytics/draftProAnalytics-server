@@ -7,6 +7,10 @@ export interface EspnDraftResultsPayloadDto extends EspnDraftYearPayloadDto {
   readonly activateMembership: boolean;
 }
 
+export interface EnrichPlayerTeamPositionsPayloadDto extends EspnDraftYearPayloadDto {
+  readonly overwriteExisting: boolean;
+}
+
 export interface EspnDraftAthleteDto {
   readonly espnAthleteId: string;
   readonly firstName: string;

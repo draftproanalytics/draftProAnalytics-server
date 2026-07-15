@@ -16,7 +16,16 @@ export interface ImportDraftSelectionResult {
   readonly activeMembershipConflict: boolean;
 }
 
+export interface EnrichPlayerTeamPositionResult {
+  readonly membershipFound: boolean;
+  readonly positionUpdated: boolean;
+  readonly positionSkipped: boolean;
+  readonly unmatchedPlayer: boolean;
+  readonly unmatchedTeam: boolean;
+}
+
 export interface IEspnDraftImportRepository {
   upsertDraftAthlete(athlete: EspnDraftAthleteDto, draftYear: number): Promise<UpsertDraftAthleteResult>;
   importDraftSelection(selection: EspnDraftSelectionDto, activateMembership: boolean): Promise<ImportDraftSelectionResult>;
+  enrichPlayerTeamPosition(selection: EspnDraftSelectionDto, overwriteExisting: boolean): Promise<EnrichPlayerTeamPositionResult>;
 }

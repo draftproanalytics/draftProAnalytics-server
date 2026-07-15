@@ -77,3 +77,32 @@ export const readEspnDraftResultsPayload = (payload: unknown): import('../../dom
   const base = readEspnDraftYearPayload(payload); const record = asPayloadRecord(payload);
   return { ...base, activateMembership: record.activateMembership !== false };
 };
+
+export const readEnrichPlayerTeamPositionsPayload = (payload: unknown): import('../../domain/dtos/EspnDraftImport.dto').EnrichPlayerTeamPositionsPayloadDto => {
+  const base = readEspnDraftYearPayload(payload);
+  const record = asPayloadRecord(payload);
+  return { ...base, overwriteExisting: record.overwriteExisting === true };
+};
+
+
+export const readLoadEspnTeamRostersPayload = (payload: unknown): import('../../domain/dtos/EspnRosterImport.dto').LoadEspnTeamRostersPayloadDto => {
+  const record = asPayloadRecord(payload);
+  if (typeof record.seasonYear !== 'number' || !Number.isInteger(record.seasonYear) || record.seasonYear < 1920) {
+    throw new Error('Job payload has an invalid seasonYear.');
+  }
+  const teamId = record.teamId === undefined
+    ? undefined
+    : (typeof record.teamId === 'number' && Number.isInteger(record.teamId) && record.teamId > 0 ? record.teamId : null);
+  if (teamId === null) throw new Error('Job payload has an invalid teamId.');
+  const importMode = record.importMode === 'HISTORICAL' ? 'HISTORICAL' : 'CURRENT';
+  const reconcileCurrentRoster = record.reconcileCurrentRoster === true;
+  if (importMode === 'HISTORICAL' && reconcileCurrentRoster) {
+    throw new Error('Historical roster jobs cannot reconcile current memberships.');
+  }
+  return {
+    seasonYear: record.seasonYear,
+    teamId,
+    importMode,
+    reconcileCurrentRoster,
+  };
+};

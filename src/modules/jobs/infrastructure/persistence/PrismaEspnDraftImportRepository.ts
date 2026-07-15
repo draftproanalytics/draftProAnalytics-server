@@ -1,7 +1,7 @@
 import type { PrismaClient, espn_players_position } from '@prisma/client';
 import { DraftPick_status } from '@prisma/client';
 import type { EspnDraftAthleteDto, EspnDraftSelectionDto } from '../../domain/dtos/EspnDraftImport.dto';
-import type { IEspnDraftImportRepository, ImportDraftSelectionResult, UpsertDraftAthleteResult } from '../../domain/repositories/IEspnDraftImportRepository';
+import type { EnrichPlayerTeamPositionResult, IEspnDraftImportRepository, ImportDraftSelectionResult, UpsertDraftAthleteResult } from '../../domain/repositories/IEspnDraftImportRepository';
 
 const allowedPositions = new Set(['QB','RB','FB','WR','TE','OL','C','G','T','DL','DE','DT','NT','LB','MLB','OLB','DB','CB','S','FS','SS','K','P','LS']);
 const mapPosition = (position: string): espn_players_position => {
@@ -144,7 +144,7 @@ export class PrismaEspnDraftImportRepository implements IEspnDraftImportReposito
           currentTeam: activateMembership && !conflictingActive,
           isActive: activateMembership && !conflictingActive ? 1 : existingMembership.isActive,
           jerseyNumber: selection.athlete?.jerseyNumber ?? existingMembership.jerseyNumber,
-          position: selection.position ?? existingMembership.position
+          position: selection.position?.trim().slice(0, 10) || existingMembership.position,
         },
       });
     } else {
@@ -154,9 +154,9 @@ export class PrismaEspnDraftImportRepository implements IEspnDraftImportReposito
           teamId: team.id,
           startYear: selection.draftYear,
           currentTeam: activateMembership && !conflictingActive,
-          position: player.position ?? selection.position,
           isActive: activateMembership && !conflictingActive ? 1 : 0,
           jerseyNumber: selection.athlete?.jerseyNumber ?? null,
+          position: selection.position?.trim().slice(0, 10) || null,
         },
       });
     }
@@ -170,6 +170,53 @@ export class PrismaEspnDraftImportRepository implements IEspnDraftImportReposito
       unmatchedTeam: false,
       activeMembershipConflict: !!conflictingActive,
     };
+  }
+
+  public async enrichPlayerTeamPosition(
+    selection: EspnDraftSelectionDto,
+    overwriteExisting: boolean,
+  ): Promise<EnrichPlayerTeamPositionResult> {
+    if (!selection.athleteEspnId) {
+      return { membershipFound: false, positionUpdated: false, positionSkipped: false, unmatchedPlayer: true, unmatchedTeam: false };
+    }
+
+    const player = await this.prisma.player.findUnique({
+      where: { espnAthleteId: selection.athleteEspnId },
+      select: { id: true },
+    });
+    if (!player) {
+      return { membershipFound: false, positionUpdated: false, positionSkipped: false, unmatchedPlayer: true, unmatchedTeam: false };
+    }
+
+    const teamEspnId = Number.parseInt(selection.teamEspnId, 10);
+    const team = Number.isInteger(teamEspnId)
+      ? await this.prisma.team.findUnique({ where: { espnTeamId: teamEspnId }, select: { id: true } })
+      : null;
+    if (!team) {
+      return { membershipFound: false, positionUpdated: false, positionSkipped: false, unmatchedPlayer: false, unmatchedTeam: true };
+    }
+
+    const membership = await this.prisma.playerTeam.findFirst({
+      where: { playerId: player.id, teamId: team.id, startYear: selection.draftYear },
+      select: { id: true, position: true },
+    });
+    if (!membership) {
+      return { membershipFound: false, positionUpdated: false, positionSkipped: false, unmatchedPlayer: false, unmatchedTeam: false };
+    }
+
+    const importedPosition = selection.position.trim().slice(0, 10);
+    if (importedPosition === '') {
+      return { membershipFound: true, positionUpdated: false, positionSkipped: true, unmatchedPlayer: false, unmatchedTeam: false };
+    }
+    if (!overwriteExisting && membership.position?.trim()) {
+      return { membershipFound: true, positionUpdated: false, positionSkipped: true, unmatchedPlayer: false, unmatchedTeam: false };
+    }
+
+    await this.prisma.playerTeam.update({
+      where: { id: membership.id },
+      data: { position: importedPosition },
+    });
+    return { membershipFound: true, positionUpdated: true, positionSkipped: false, unmatchedPlayer: false, unmatchedTeam: false };
   }
 
   private espnPlayerData(a: EspnDraftAthleteDto) {
