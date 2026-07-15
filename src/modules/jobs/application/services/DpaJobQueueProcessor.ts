@@ -3,6 +3,8 @@ import { DpaJobType, executableDpaJobTypes } from '../../domain/enums/DpaJobType
 import type { IJobQueueRepository } from '../../domain/repositories/IJobQueueRepository';
 import type { ImportNflGameScoresJobHandler } from './ImportNflGameScoresJobHandler';
 import type { LoadNflSeasonScheduleJobHandler } from './LoadNflSeasonScheduleJobHandler';
+import type { LoadEspnDraftClassPlayersJobHandler } from './LoadEspnDraftClassPlayersJobHandler';
+import type { LoadEspnDraftResultsJobHandler } from './LoadEspnDraftResultsJobHandler';
 
 export interface ProcessJobQueueResultDto {
   readonly claimed: number;
@@ -15,6 +17,8 @@ export class DpaJobQueueProcessor {
     private readonly jobQueueRepository: IJobQueueRepository,
     private readonly loadNflSeasonScheduleJobHandler: LoadNflSeasonScheduleJobHandler,
     private readonly importNflGameScoresJobHandler: ImportNflGameScoresJobHandler,
+    private readonly loadEspnDraftClassPlayersJobHandler: LoadEspnDraftClassPlayersJobHandler,
+    private readonly loadEspnDraftResultsJobHandler: LoadEspnDraftResultsJobHandler,
   ) {}
 
   public async processNextJobs(take: number): Promise<ProcessJobQueueResultDto> {
@@ -38,6 +42,10 @@ export class DpaJobQueueProcessor {
           await this.loadNflSeasonScheduleJobHandler.execute(job);
         } else if (job.type === DpaJobType.ImportNflGameScores) {
           await this.importNflGameScoresJobHandler.execute(job);
+        } else if (job.type === DpaJobType.LoadEspnDraftClassPlayers) {
+          await this.loadEspnDraftClassPlayersJobHandler.execute(job);
+        } else if (job.type === DpaJobType.LoadEspnDraftResults) {
+          await this.loadEspnDraftResultsJobHandler.execute(job);
         } else {
           throw new Error(`Unsupported job type: ${job.type}`);
         }

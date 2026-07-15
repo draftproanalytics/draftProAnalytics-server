@@ -154,6 +154,7 @@ model PlayerTeam {
   id             Int     @id @default(autoincrement())
   playerId       Int
   teamId         Int
+  position       String? @db.VarChar(10)
   currentTeam    Boolean @default(false)
   jerseyNumber   Int?
   contractValue  Int?
@@ -166,6 +167,7 @@ model PlayerTeam {
 
   @@index([playerId], map: "fk_PlayerTeam_Player_idx")
   @@index([teamId], map: "fk_PlayerTeam_Team_idx")
+  @@index([teamId, position], map: "IX_PlayerTeam_teamId_position")
 }
 
 model PostSeasonResult {

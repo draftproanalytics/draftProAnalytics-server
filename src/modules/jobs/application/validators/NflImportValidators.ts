@@ -77,3 +77,14 @@ export const parseImportNflGameScoresPayload = (
     requestedByPersonId,
   };
 };
+
+
+export const parseEspnDraftYearPayload = (body: unknown): import('../../domain/dtos/EspnDraftImport.dto').EspnDraftYearPayloadDto => {
+  const request = asRecord(body); const draftYear = parsePositiveInteger(request.draftYear, 'draftYear');
+  if (draftYear < 1936 || draftYear > new Date().getFullYear() + 2) throw new Error('draftYear is outside the supported range.');
+  return { draftYear, requestedByPersonId: typeof request.requestedByPersonId === 'number' ? request.requestedByPersonId : undefined };
+};
+export const parseEspnDraftResultsPayload = (body: unknown): import('../../domain/dtos/EspnDraftImport.dto').EspnDraftResultsPayloadDto => {
+  const base = parseEspnDraftYearPayload(body); const request = asRecord(body);
+  return { ...base, activateMembership: request.activateMembership !== false };
+};

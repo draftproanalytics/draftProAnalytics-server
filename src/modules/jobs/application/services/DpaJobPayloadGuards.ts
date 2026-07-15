@@ -66,3 +66,14 @@ export const readImportNflGameScoresPayload = (
     week: record.week,
   };
 };
+
+
+export const readEspnDraftYearPayload = (payload: unknown): import('../../domain/dtos/EspnDraftImport.dto').EspnDraftYearPayloadDto => {
+  const record = asPayloadRecord(payload);
+  if (typeof record.draftYear !== 'number' || !Number.isInteger(record.draftYear) || record.draftYear < 1936) throw new Error('Job payload has an invalid draftYear.');
+  return { draftYear: record.draftYear };
+};
+export const readEspnDraftResultsPayload = (payload: unknown): import('../../domain/dtos/EspnDraftImport.dto').EspnDraftResultsPayloadDto => {
+  const base = readEspnDraftYearPayload(payload); const record = asPayloadRecord(payload);
+  return { ...base, activateMembership: record.activateMembership !== false };
+};
