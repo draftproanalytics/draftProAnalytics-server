@@ -82,8 +82,8 @@ router.use("/draftpicks", draftPickRoutes);
  * ───────────────────────────── */
 router.use("/standings", standingsRoutes);
 router.use("/teamStandings", standingsRoutes);
-//router.use("/team-needs", teamNeedRoutes);
-router.use("/team-needs", bootstrapTeamNeedsAnalysisModule);
+router.use("/team-need-records", teamNeedRoutes);
+router.use("/team-needs", bootstrapTeamNeedsAnalysisModule(prisma));
 router.use("/scoreboard", buildScoreboardRouter());
 router.use('/draftSimulator', buildDraftSimulatorModule(prisma))
 router.use('/draft-order', buildDraftOrderModule(prisma))
