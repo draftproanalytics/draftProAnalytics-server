@@ -231,7 +231,7 @@ export class GameService {
     seasonYear: string
   ): Promise<{ wins: number; losses: number; ties: number }> {
     const games = await this.gameRepository.findByTeamAndSeason(teamId, seasonYear);
-    const completedGames = games.filter((g) => g.gameStatus === 'completed');
+    const completedGames = games.filter((g) => (g.seasonType === 2 || g.seasonType === 3) && (g.gameStatus === 'completed' || g.gameStatus === 'final'));
 
     let wins = 0;
     let losses = 0;
@@ -266,7 +266,7 @@ export class GameService {
     seasonYear: string
   ): Promise<{ wins: number; losses: number; ties: number }> {
     const games = await this.gameRepository.findByTeamAndSeason(teamId, seasonYear);
-    const completedGames = games.filter((g) => g.gameStatus === 'completed');
+    const completedGames = games.filter((g) => (g.seasonType === 2 || g.seasonType === 3) && (g.gameStatus === 'completed' || g.gameStatus === 'final'));
 
     let wins = 0;
     let losses = 0;
@@ -351,7 +351,7 @@ export class GameService {
     const standings = await Promise.all(
       divisionTeams.map(async (divTeam): Promise<TeamStanding> => {
         const games = await this.gameRepository.findByTeamAndSeason(divTeam.id!, seasonYear);
-        const completedGames = games.filter((g) => g.gameStatus === 'completed');
+        const completedGames = games.filter((g) => g.seasonType === 2 && (g.gameStatus === 'completed' || g.gameStatus === 'final'));
 
         let wins = 0;
         let losses = 0;
@@ -427,7 +427,7 @@ export class GameService {
     away: { wins: number; losses: number; ties: number };
   }> {
     const games = await this.gameRepository.findByTeamAndSeason(teamId, seasonYear);
-    const completedGames = games.filter((g) => g.gameStatus === 'completed');
+    const completedGames = games.filter((g) => (g.seasonType === 2 || g.seasonType === 3) && (g.gameStatus === 'completed' || g.gameStatus === 'final'));
 
     let homeWins = 0,
       homeLosses = 0,
@@ -459,6 +459,10 @@ export class GameService {
       away: { wins: awayWins, losses: awayLosses, ties: awayTies },
     };
   }
+  async getTeamSeasonYears(teamId: number): Promise<readonly number[]> {
+    return this.gameRepository.findSeasonYearsByTeam(teamId);
+  }
+
   /**
    * Get team statistics summary
    */
@@ -485,7 +489,7 @@ export class GameService {
 
     // Calculate overall record (existing code)
     const games = await this.gameRepository.findByTeamAndSeason(teamId, seasonYear);
-    const completedGames = games.filter((g) => g.gameStatus === 'completed');
+    const completedGames = games.filter((g) => (g.seasonType === 2 || g.seasonType === 3) && (g.gameStatus === 'completed' || g.gameStatus === 'final'));
 
     let overallWins = 0,
       overallLosses = 0,

@@ -71,6 +71,7 @@ router.use("/player-teams", playerTeamRoutes);
 router.use('/roster-players', rosterSyncRouter);
 router.use("/prospects", prospectRoutes);
 router.use("/postseason-results", postSeasonResultRoutes);
+router.use("/post-season-results", postSeasonResultRoutes);
 router.use("/schedules", scheduleRoutes);
 
 router.use("/games", gameRoutes);

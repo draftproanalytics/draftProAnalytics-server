@@ -62,6 +62,7 @@ export interface IGameRepository {
 
   // Team and season queries - All return Games WITH team relations
   findByTeamAndSeason(teamId: number, seasonYear: string): Promise<Game[]>;
+  findSeasonYearsByTeam(teamId: number): Promise<readonly number[]>;
   findByTeamSeasonWeek(teamId: number, seasonYear: string, gameWeek: number): Promise<Game[]>;
   
   // Status-based queries - All return Games WITH team relations

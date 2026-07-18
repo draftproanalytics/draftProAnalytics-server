@@ -1,10 +1,19 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Game_playoffRound, Prisma, PrismaClient } from '@prisma/client';
 import type { NflGameEventDto } from '../../domain/dtos/NflGameEvent.dto';
 import type {
   IGameScheduleRepository,
   UpsertGameResultDto,
 } from '../../domain/repositories/IGameScheduleRepository';
 import type { ITeamIdentityResolver } from '../../domain/repositories/ITeamIdentityResolver';
+
+const resolvePlayoffRound = (seasonType: number, week: number): Game_playoffRound | null => {
+  if (seasonType !== 3) return null;
+  if (week === 1) return 'WILDCARD';
+  if (week === 2) return 'DIVISIONAL';
+  if (week === 3) return 'CONFERENCE';
+  if (week >= 4) return 'SUPERBOWL';
+  return null;
+};
 
 export class PrismaGameScheduleRepository implements IGameScheduleRepository {
   public constructor(
@@ -67,6 +76,7 @@ export class PrismaGameScheduleRepository implements IGameScheduleRepository {
         awayScore: event.awayScore ?? 0,
         gameStatus,
         isPlayoff: event.isPlayoff,
+        playoffRound: resolvePlayoffRound(event.seasonType, event.week),
         espnEventId: event.espnEventId,
         espnCompetitionId: event.espnCompetitionId,
       },
@@ -84,6 +94,7 @@ export class PrismaGameScheduleRepository implements IGameScheduleRepository {
         awayScore: event.awayScore ?? 0,
         gameStatus,
         isPlayoff: event.isPlayoff,
+        playoffRound: resolvePlayoffRound(event.seasonType, event.week),
         espnCompetitionId: event.espnCompetitionId,
         updatedAt: new Date(),
       },

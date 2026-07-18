@@ -218,6 +218,21 @@ export class PrismaGameRepository implements IGameRepository {
     return rows.map((r) => this.hydrateGameWithTeams(r));
   }
 
+  async findSeasonYearsByTeam(teamId: number): Promise<readonly number[]> {
+    const rows = await this.prisma.game.findMany({
+      where: {
+        OR: [{ homeTeamId: teamId }, { awayTeamId: teamId }],
+      },
+      select: { seasonYear: true },
+      distinct: ['seasonYear'],
+      orderBy: { seasonYear: 'desc' },
+    });
+
+    return rows
+      .map((row) => Number.parseInt(row.seasonYear, 10))
+      .filter((year) => Number.isInteger(year));
+  }
+
   async findByTeamSeasonWeek(
     teamId: number,
     seasonYear: string,
@@ -246,7 +261,7 @@ export class PrismaGameRepository implements IGameRepository {
   }
 
   async findCompletedGames(teamId?: number, limit = 10): Promise<Game[]> {
-    const where: Prisma.GameWhereInput = { gameStatus: 'completed' as any };
+    const where: Prisma.GameWhereInput = { gameStatus: Game_gameStatus.final };
     if (teamId != null) (where as any).OR = [{ homeTeamId: teamId }, { awayTeamId: teamId }];
 
     const rows = await this.prisma.game.findMany({

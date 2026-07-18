@@ -22,6 +22,8 @@ export interface GameProps {
   homeScore?: number;
   awayScore?: number;
   gameStatus?: GameStatusType;
+  isPlayoff?: boolean;
+  playoffRound?: string;
   espnEventId?: string;
   espnCompetitionId?: string;
   createdAt?: Date;
@@ -111,6 +113,14 @@ export class Game {
 
   get gameStatus(): string | undefined {
     return this.props.gameStatus;
+  }
+
+  get isPlayoff(): boolean {
+    return this.props.isPlayoff ?? false;
+  }
+
+  get playoffRound(): string | undefined {
+    return this.props.playoffRound;
   }
 
   get espnEventId(): string | undefined {
@@ -213,6 +223,8 @@ export class Game {
       homeScore: this.props.homeScore,
       awayScore: this.props.awayScore,
       gameStatus: this.props.gameStatus,
+      isPlayoff: this.props.isPlayoff,
+      playoffRound: this.props.playoffRound,
       espnEventId: this.props.espnEventId,
       espnCompetitionId: this.props.espnCompetitionId,
       createdAt: this.props.createdAt,
@@ -236,6 +248,8 @@ export class Game {
       homeScore: this.props.homeScore,
       awayScore: this.props.awayScore,
       gameStatus: this.props.gameStatus,
+      isPlayoff: this.props.isPlayoff,
+      playoffRound: this.props.playoffRound,
       espnEventId: this.props.espnEventId,
       espnCompetitionId: this.props.espnCompetitionId,
       createdAt: this.props.createdAt,
@@ -261,6 +275,8 @@ export class Game {
       homeScore: data.homeScore,
       awayScore: data.awayScore,
       gameStatus: data.gameStatus,
+      isPlayoff: data.isPlayoff ?? false,
+      playoffRound: data.playoffRound ?? undefined,
       espnEventId: data.espnEventId,
       espnCompetitionId: data.espnCompetitionId,
       createdAt: data.createdAt ? new Date(data.createdAt) : undefined,

@@ -160,22 +160,7 @@ export class RosterPlayerController {
       }
 
       const rosterPlayers = await this.getTeamRosterUseCase.execute(teamId)
-      
-      const response = rosterPlayers.map(rp => ({
-        id: rp.id,
-        teamId: rp.teamId,
-        playerName: rp.playerName,
-        position: rp.position,
-        positionGroup: rp.positionGroup,
-        depthChartOrder: rp.depthChartOrder,
-        age: rp.age,
-        yearsExperience: rp.yearsExperience,
-        performanceGrade: rp.performanceGrade,
-        isStarter: rp.isStarter,
-        injuryStatus: rp.injuryStatus,
-      }))
-
-      res.status(200).json(response)
+      res.status(200).json(rosterPlayers)
     } catch (error) {
       next(error)
     }

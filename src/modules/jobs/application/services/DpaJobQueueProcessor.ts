@@ -3,6 +3,12 @@ import { DpaJobType, executableDpaJobTypes } from '../../domain/enums/DpaJobType
 import type { IJobQueueRepository } from '../../domain/repositories/IJobQueueRepository';
 import type { ImportNflGameScoresJobHandler } from './ImportNflGameScoresJobHandler';
 import type { LoadNflSeasonScheduleJobHandler } from './LoadNflSeasonScheduleJobHandler';
+import type { LoadEspnDraftClassPlayersJobHandler } from './LoadEspnDraftClassPlayersJobHandler';
+import type { LoadEspnDraftResultsJobHandler } from './LoadEspnDraftResultsJobHandler';
+import type { EnrichPlayerTeamPositionsJobHandler } from './EnrichPlayerTeamPositionsJobHandler';
+import type { SyncEspnDraftPicksToDpaJobHandler } from './SyncEspnDraftPicksToDpaJobHandler';
+import type { LoadEspnTeamRostersJobHandler } from './LoadEspnTeamRostersJobHandler';
+import type { SyncPostSeasonResultsJobHandler } from './SyncPostSeasonResultsJobHandler';
 
 export interface ProcessJobQueueResultDto {
   readonly claimed: number;
@@ -15,6 +21,12 @@ export class DpaJobQueueProcessor {
     private readonly jobQueueRepository: IJobQueueRepository,
     private readonly loadNflSeasonScheduleJobHandler: LoadNflSeasonScheduleJobHandler,
     private readonly importNflGameScoresJobHandler: ImportNflGameScoresJobHandler,
+    private readonly loadEspnDraftClassPlayersJobHandler: LoadEspnDraftClassPlayersJobHandler,
+    private readonly loadEspnDraftResultsJobHandler: LoadEspnDraftResultsJobHandler,
+    private readonly enrichPlayerTeamPositionsJobHandler: EnrichPlayerTeamPositionsJobHandler,
+    private readonly syncEspnDraftPicksToDpaJobHandler: SyncEspnDraftPicksToDpaJobHandler,
+    private readonly loadEspnTeamRostersJobHandler: LoadEspnTeamRostersJobHandler,
+    private readonly syncPostSeasonResultsJobHandler: SyncPostSeasonResultsJobHandler,
   ) {}
 
   public async processNextJobs(take: number): Promise<ProcessJobQueueResultDto> {
@@ -38,6 +50,18 @@ export class DpaJobQueueProcessor {
           await this.loadNflSeasonScheduleJobHandler.execute(job);
         } else if (job.type === DpaJobType.ImportNflGameScores) {
           await this.importNflGameScoresJobHandler.execute(job);
+        } else if (job.type === DpaJobType.LoadEspnDraftClassPlayers) {
+          await this.loadEspnDraftClassPlayersJobHandler.execute(job);
+        } else if (job.type === DpaJobType.LoadEspnDraftResults) {
+          await this.loadEspnDraftResultsJobHandler.execute(job);
+        } else if (job.type === DpaJobType.EnrichPlayerTeamPositions) {
+          await this.enrichPlayerTeamPositionsJobHandler.execute(job);
+        } else if (job.type === DpaJobType.SyncEspnDraftPicksToDpa) {
+          await this.syncEspnDraftPicksToDpaJobHandler.execute(job);
+        } else if (job.type === DpaJobType.LoadEspnTeamRosters) {
+          await this.loadEspnTeamRostersJobHandler.execute(job);
+        } else if (job.type === DpaJobType.SyncPostSeasonResultsFromGames) {
+          await this.syncPostSeasonResultsJobHandler.execute(job);
         } else {
           throw new Error(`Unsupported job type: ${job.type}`);
         }

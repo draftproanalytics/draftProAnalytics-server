@@ -25,6 +25,8 @@ export function mapGameToResponse(game: Game): GameResponseDto {
     homeScore: plain.homeScore,
     awayScore: plain.awayScore,
     gameStatus: plain.gameStatus,
+    isPlayoff: plain.isPlayoff ?? false,
+    playoffRound: plain.playoffRound,
 
     fullLocation: [plain.gameLocation, plain.gameCity, plain.gameStateProvince, plain.gameCountry]
       .filter((p) => !!p && String(p).trim().length > 0)

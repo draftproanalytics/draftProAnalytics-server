@@ -83,6 +83,12 @@ router.get('/upcoming', gameController.getUpcomingGames);
 router.get('/completed', gameController.getCompletedGames);
 
 router.get(
+  '/team/:teamId/seasons',
+  validateParams(z.object({ teamId: z.coerce.number().int().positive() })),
+  gameController.getTeamSeasonYears
+);
+
+router.get(
   '/team/:teamId/statistics',
   validateParams(z.object({ teamId: z.coerce.number().int().positive() })),
   validateQuery(z.object({ seasonYear: z.string().regex(/^\d{4}$/).optional() }).passthrough()),

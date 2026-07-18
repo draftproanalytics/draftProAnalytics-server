@@ -87,6 +87,8 @@ export interface GameResponseDto {
   homeScore?: number;
   awayScore?: number;
   gameStatus?: string;
+  isPlayoff?: boolean;
+  playoffRound?: string;
   fullLocation?: string;
   winningTeamId?: number | null;
   isTie?: boolean;
