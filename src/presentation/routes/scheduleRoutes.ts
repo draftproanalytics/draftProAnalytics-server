@@ -26,6 +26,7 @@ import { bracketToEvents } from '@/application/playoffs/mappers/PlayoffBracketTo
 import { UtilityMapper } from '@/application/playoffs/mappers/UtilityMapper';
 import { TeamHelper } from '@/utils/TeamHelper';
 import { $Enums } from '@prisma/client';
+import { playoffGameDetailsRouter } from './playoffGameDetailsRoute';
 
 const playoffRoundOrder: PlayoffRound[] = [
   'WILDCARD',
@@ -38,7 +39,7 @@ const playoffRoundToWeek: Record<PlayoffRound, number> = {
   WILDCARD: 1,
   DIVISIONAL: 2,
   CONFERENCE: 3,
-  SUPERBOWL: 4,
+  SUPERBOWL: 5,
 };
 
 console.log('📦 LOADED scheduleRoutes from:', __filename);
@@ -196,6 +197,8 @@ async function detectCurrentPlayoffWeek(
 // ---------------------
 // Routes
 // ---------------------
+router.use('/games', playoffGameDetailsRouter);
+
 router.post('/', validateBody(CreateScheduleDtoSchema), scheduleController.createSchedule);
 
 router.get('/', validateQuery(QuerySchema), scheduleController.getAllSchedules);
