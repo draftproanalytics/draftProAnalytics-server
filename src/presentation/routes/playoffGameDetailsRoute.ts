@@ -216,6 +216,46 @@ const mapPlay = (value: unknown): PlayRow | null => {
   };
 };
 
+const deriveLineScoresFromScoringPlays = (
+  scoringPlays: readonly PlayRow[],
+  awayTotal: number | null,
+  homeTotal: number | null
+): { away: number[]; home: number[] } => {
+  const away: number[] = [];
+  const home: number[] = [];
+  let previousAway = 0;
+  let previousHome = 0;
+
+  for (const play of scoringPlays) {
+    if (play.period === null || play.period <= 0) continue;
+    if (play.awayScore === null || play.homeScore === null) continue;
+
+    const periodIndex = play.period - 1;
+    while (away.length <= periodIndex) away.push(0);
+    while (home.length <= periodIndex) home.push(0);
+
+    away[periodIndex] += Math.max(0, play.awayScore - previousAway);
+    home[periodIndex] += Math.max(0, play.homeScore - previousHome);
+    previousAway = play.awayScore;
+    previousHome = play.homeScore;
+  }
+
+  const minimumPeriods = 4;
+  while (away.length < minimumPeriods) away.push(0);
+  while (home.length < minimumPeriods) home.push(0);
+
+  if (awayTotal !== null) {
+    const difference = awayTotal - away.reduce((sum, value) => sum + value, 0);
+    if (difference > 0) away[away.length - 1] += difference;
+  }
+  if (homeTotal !== null) {
+    const difference = homeTotal - home.reduce((sum, value) => sum + value, 0);
+    if (difference > 0) home[home.length - 1] += difference;
+  }
+
+  return { away, home };
+};
+
 export const playoffGameDetailsRouter = Router();
 
 playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
@@ -276,6 +316,19 @@ playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
 
     const boxscore = asObject(nested(payload, 'boxscore'));
     const scoringPlays = asArray(nested(payload, 'scoringPlays')).map(mapPlay).filter((play): play is PlayRow => play !== null);
+    const derivedLineScores = deriveLineScoresFromScoringPlays(
+      scoringPlays,
+      awayTeam.score,
+      homeTeam.score
+    );
+    const normalizedAwayTeam: TeamSummary = {
+      ...awayTeam,
+      linescores: awayTeam.linescores.length > 0 ? awayTeam.linescores : derivedLineScores.away,
+    };
+    const normalizedHomeTeam: TeamSummary = {
+      ...homeTeam,
+      linescores: homeTeam.linescores.length > 0 ? homeTeam.linescores : derivedLineScores.home,
+    };
     const allPlays = asArray(nested(payload, 'plays')).map(mapPlay).filter((play): play is PlayRow => play !== null);
     const recentPlays = allPlays.slice(-10).reverse();
     const status = asString(nested(payload, 'header', 'competitions', '0', 'status', 'type', 'detail'))
@@ -296,10 +349,10 @@ playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
         venue: game.gameLocation,
         location: [game.gameCity, game.gameStateProvince].filter(Boolean).join(', ') || null,
         status,
-        awayTeam,
-        homeTeam,
-        teamStats: mapStats(boxscore, awayTeam.id, homeTeam.id),
-        leaders: mapLeaders(boxscore, awayTeam.id, homeTeam.id),
+        awayTeam: normalizedAwayTeam,
+        homeTeam: normalizedHomeTeam,
+        teamStats: mapStats(boxscore, normalizedAwayTeam.id, normalizedHomeTeam.id),
+        leaders: mapLeaders(boxscore, normalizedAwayTeam.id, normalizedHomeTeam.id),
         scoringPlays,
         recentPlays,
       },
