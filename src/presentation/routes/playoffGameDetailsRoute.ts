@@ -260,13 +260,16 @@ export const playoffGameDetailsRouter = Router();
 
 playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
   try {
-    const gameId = Number(req.params.gameId);
-    if (!Number.isInteger(gameId) || gameId <= 0) {
+    const requestedId = req.params.gameId.trim();
+    const numericId = Number(requestedId);
+    if (!requestedId || !Number.isInteger(numericId) || numericId <= 0) {
       return res.status(400).json({ success: false, message: 'gameId must be a positive integer' });
     }
 
-    const game = await prisma.game.findUnique({
-      where: { id: gameId },
+    // Playoff-bracket rows pass the DPA Game.id. Upcoming Schedule rows pass
+    // ESPN's event id. Support both identifiers through this shared endpoint.
+    const gameByDatabaseId = await prisma.game.findUnique({
+      where: { id: numericId },
       select: {
         id: true,
         seasonYear: true,
@@ -284,18 +287,32 @@ playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
       },
     });
 
-    if (!game) {
-      return res.status(404).json({ success: false, message: 'Playoff game not found' });
-    }
-    if (!game.isPlayoff && game.seasonType !== 3) {
-      return res.status(400).json({ success: false, message: 'Game is not a playoff game' });
-    }
-    if (!game.espnEventId) {
-      return res.status(409).json({ success: false, message: 'Game does not have an ESPN event id' });
-    }
+    const gameByEspnEventId = gameByDatabaseId
+      ? null
+      : await prisma.game.findFirst({
+          where: { espnEventId: requestedId },
+          select: {
+            id: true,
+            seasonYear: true,
+            gameWeek: true,
+            gameDate: true,
+            gameLocation: true,
+            gameCity: true,
+            gameStateProvince: true,
+            gameStatus: true,
+            playoffRound: true,
+            playoffConference: true,
+            isPlayoff: true,
+            seasonType: true,
+            espnEventId: true,
+          },
+        });
+
+    const game = gameByDatabaseId ?? gameByEspnEventId;
+    const espnEventId = game?.espnEventId ?? requestedId;
 
     const response = await fetch(
-      `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(game.espnEventId)}`,
+      `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(espnEventId)}`,
       { headers: { Accept: 'application/json' } }
     );
     if (!response.ok) {
@@ -331,23 +348,37 @@ playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
     };
     const allPlays = asArray(nested(payload, 'plays')).map(mapPlay).filter((play): play is PlayRow => play !== null);
     const recentPlays = allPlays.slice(-10).reverse();
-    const status = asString(nested(payload, 'header', 'competitions', '0', 'status', 'type', 'detail'))
-      ?? asString(nested(header, 'status', 'type', 'detail'))
-      ?? String(game.gameStatus);
+    const status = asString(nested(header, 'status', 'type', 'detail'))
+      ?? asString(nested(header, 'status', 'type', 'description'))
+      ?? (game ? String(game.gameStatus) : 'Scheduled');
+
+    const seasonYear = Number(game?.seasonYear ?? nested(payload, 'header', 'season', 'year') ?? 0);
+    const eventDate = game?.gameDate?.toISOString()
+      ?? asString(header?.date)
+      ?? asString(nested(payload, 'header', 'competitions', '0', 'date'));
+    const venueName = game?.gameLocation
+      ?? asString(nested(payload, 'gameInfo', 'venue', 'fullName'))
+      ?? asString(nested(header, 'venue', 'fullName'));
+    const city = game?.gameCity
+      ?? asString(nested(payload, 'gameInfo', 'venue', 'address', 'city'));
+    const state = game?.gameStateProvince
+      ?? asString(nested(payload, 'gameInfo', 'venue', 'address', 'state'));
 
     return res.json({
       success: true,
       data: {
-        gameId: game.id,
-        espnEventId: game.espnEventId,
-        seasonYear: Number(game.seasonYear),
-        title: resolvePlayoffTitle(game.playoffRound, game.playoffConference, Number(game.seasonYear)),
-        playoffRound: game.playoffRound,
-        playoffConference: game.playoffConference,
-        playoffGameName: null, 
-        date: game.gameDate?.toISOString() ?? null,
-        venue: game.gameLocation,
-        location: [game.gameCity, game.gameStateProvince].filter(Boolean).join(', ') || null,
+        gameId: game?.id ?? numericId,
+        espnEventId,
+        seasonYear,
+        title: game?.playoffRound
+          ? resolvePlayoffTitle(game.playoffRound, game.playoffConference, seasonYear)
+          : `${normalizedAwayTeam.displayName} at ${normalizedHomeTeam.displayName}`,
+        playoffRound: game?.playoffRound ?? null,
+        playoffConference: game?.playoffConference ?? null,
+        playoffGameName: null,
+        date: eventDate,
+        venue: venueName,
+        location: [city, state].filter(Boolean).join(', ') || null,
         status,
         awayTeam: normalizedAwayTeam,
         homeTeam: normalizedHomeTeam,
@@ -358,8 +389,8 @@ playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unable to load playoff game details';
-    console.error('[playoff-game-details]', error);
+    const message = error instanceof Error ? error.message : 'Unable to load game details';
+    console.error('[game-details]', error);
     return res.status(500).json({ success: false, message });
   }
 });
