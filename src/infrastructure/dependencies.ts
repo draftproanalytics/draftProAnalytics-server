@@ -152,7 +152,7 @@ const forgotPasswordUseCase = new ForgotPasswordUseCase(personRepo, tokenGen, ma
 // after you create prisma, personRepo, passwordHasher, tokenService, etc.
 const personIdentityRepo = new PrismaPersonIdentityRepository(prisma);
 const googleAuthService = new GoogleAuthServiceImpl(process.env.GOOGLE_CLIENT_ID!);
-const appleAuthService = new AppleAuthServiceImpl();
+const appleAuthService = new AppleAuthServiceImpl(process.env.APPLE_CLIENT_ID!);
 const authTokenService = new JwtAuthTokenService();
 
 const loginWithGoogleUseCase = new LoginWithGoogleUseCase(

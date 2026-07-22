@@ -4,8 +4,9 @@ import crypto from 'crypto';
 import type { AuthTokenService } from '@/domain/auth/services/AuthTokenService';
 
 type AccessTokenPayload = JwtPayload & {
-  sub: string;      // 👈 store personId as string
+  sub: string;
   userName: string;
+  activeRid: number;
 };
 
 export class JwtAuthTokenService implements AuthTokenService {
@@ -31,10 +32,11 @@ export class JwtAuthTokenService implements AuthTokenService {
     this.refreshMinutes = refreshMinutesNum;
   }
 
-  generateAccessToken(personId: number, userName: string): string {
+  generateAccessToken(personId: number, userName: string, activeRid: number): string {
     const payload: AccessTokenPayload = {
       sub: personId.toString(),   // 👈 store as string to satisfy JwtPayload
       userName,
+      activeRid,
     };
 
     return jwt.sign(payload, this.accessSecret, { expiresIn: '15m' });
@@ -67,7 +69,7 @@ export class JwtAuthTokenService implements AuthTokenService {
     return {
       personId,
       userName: decoded.userName,
-      activeRid: 0
+      activeRid: decoded.activeRid
     };
   }
 }

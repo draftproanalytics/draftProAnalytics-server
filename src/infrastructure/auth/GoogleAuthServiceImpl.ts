@@ -35,12 +35,16 @@ export class GoogleAuthServiceImpl implements GoogleAuthService {
       throw new Error('GoogleAuthServiceImpl: invalid Google ID token payload');
     }
 
+    if (payload.email_verified !== true) {
+      throw new Error('Google email address is not verified');
+    }
+
     const provider: IdentityProvider = 'google';
 
     return {
       provider,
       providerUserId: payload.sub,
-      email: payload.email ?? null,
+      email: payload.email?.toLowerCase() ?? null,
       firstName: (payload.given_name as string | undefined) ?? null,
       lastName: (payload.family_name as string | undefined) ?? null,
     };

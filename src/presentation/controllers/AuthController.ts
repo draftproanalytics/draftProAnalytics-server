@@ -196,14 +196,14 @@ export class AuthController {
   // ─────────────────────────
   async loginWithApple(req: Request, res: Response): Promise<void> {
     try {
-      const { credential } = req.body as { credential?: string };
+      const { credential, firstName, lastName } = req.body as { credential?: string; firstName?: string; lastName?: string };
 
       if (!credential) {
         res.status(400).json({ error: 'Missing Apple credential' });
         return;
       }
 
-      const result = await loginWithAppleUseCase.execute({ credential });
+      const result = await loginWithAppleUseCase.execute({ credential, firstName, lastName });
 
       res.status(200).json({
         accessToken: result.accessToken,

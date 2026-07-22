@@ -1,4 +1,3 @@
-// src/application/auth/login/LoginWithGoogleUseCase.ts
 import type { IPersonRepository } from '@/domain/person/repositories/IPersonRepository';
 import type { IPersonIdentityRepository } from '@/domain/personIdentity/repositories/IPersonIdentityRepository';
 import type { GoogleAuthService } from '@/domain/auth/services/GoogleAuthService';
@@ -7,6 +6,12 @@ import type { PasswordHasher } from '@/domain/auth/services/PasswordHasher';
 import { Person } from '@/domain/person/entities/Person';
 import type { SocialLoginInputDTO, SocialLoginResponseDTO } from './SocialLoginDTO';
 import { PersonMapper } from '@/domain/person/mapper/PersonMapper';
+
+function usernameBase(email: string | null, provider: string, providerUserId: string): string {
+  const raw = email?.split('@')[0] || `${provider}_${providerUserId.slice(0, 8)}`;
+  const cleaned = raw.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return cleaned.slice(0, 25) || `${provider}_user`;
+}
 
 export class LoginWithGoogleUseCase {
   constructor(
@@ -18,77 +23,67 @@ export class LoginWithGoogleUseCase {
   ) {}
 
   async execute(input: SocialLoginInputDTO): Promise<SocialLoginResponseDTO> {
-    const { credential } = input;
+    const profile = await this.googleAuth.verifyIdToken(input.credential);
+    const provider = 'google' as const;
 
-    // 1) Verify id_token with Google
-    const profile = await this.googleAuth.verifyIdToken(credential);
-    const provider: 'google' = 'google';
-    const providerUserId = profile.providerUserId;
-
-    // 2) Look for existing identity
-    const identity = await this.identityRepo.findByProviderAndUserId(
-      provider,
-      providerUserId
-    );
-
+    const identity = await this.identityRepo.findByProviderAndUserId(provider, profile.providerUserId);
     let person = identity ? await this.personRepo.findById(identity.personId) : null;
 
-    // 3) Create Person + PersonIdentity if needed
-    if (!person) {
-      const email = profile.email ?? '';
-      const firstName = profile.firstName ?? 'Google';
-      const lastName = profile.lastName ?? 'User';
-      const userNameBase = email || `google_${providerUserId.slice(0, 8)}`;
+    // Safely link an existing DPA account when Google verifies the same email.
+    if (!person && profile.email) {
+      person = await this.personRepo.findByEmail(profile.email);
+      if (person?.pid) {
+        await this.identityRepo.createIdentity({
+          personId: person.pid,
+          provider,
+          providerUserId: profile.providerUserId,
+          email: profile.email,
+        });
+      }
+    }
 
-      let userName = userNameBase;
+    if (!person) {
+      if (!profile.email) throw new Error('Google did not provide an email address');
+
+      const base = usernameBase(profile.email, provider, profile.providerUserId);
+      let userName = base;
       let suffix = 1;
-      // naive uniqueness loop; fine for now
-      // eslint-disable-next-line no-constant-condition
       while (await this.personRepo.findByUserName(userName)) {
-        userName = `${userNameBase}_${suffix++}`;
+        const tail = `_${suffix++}`;
+        userName = `${base.slice(0, 25 - tail.length)}${tail}`;
       }
 
-      const randomPassword = `ext-google-${providerUserId}`;
-      const hashedPassword = await this.hasher.hash(randomPassword);
-
-      const newPersonEntity = Person.create({
+      const hashedPassword = await this.hasher.hash(`ext-google-${profile.providerUserId}`);
+      const entity = Person.create({
         userName,
-        emailAddress: email,
+        emailAddress: profile.email,
         passwordHash: hashedPassword,
-        firstName,
-        lastName,
+        firstName: (profile.firstName || 'Google').slice(0, 25),
+        lastName: (profile.lastName || 'User').slice(0, 35),
         activeRid: 1,
       });
-
-      // Map Person -> NewPersonInput before calling repo
-      const newPersonInput = PersonMapper.mapPersonToNewPersonInput(newPersonEntity);
-      const savedRow = await this.personRepo.createPerson(newPersonInput);
-
-      person = Person.fromPersistence(savedRow);
+      const saved = await this.personRepo.createPerson(PersonMapper.mapPersonToNewPersonInput(entity));
+      person = Person.fromPersistence(saved);
 
       await this.identityRepo.createIdentity({
         personId: person.pid!,
         provider,
-        providerUserId,
-        email: email || null,
+        providerUserId: profile.providerUserId,
+        email: profile.email,
       });
     }
 
-    if (!person || !person.pid) {
-      throw new Error('Person not found after Google login');
+    if (!person.pid) throw new Error('Person not found after Google login');
+    if (!person.isActive) throw new Error('This DPA account is inactive');
+
+    if (!person.emailVerified) {
+      person.markEmailVerified();
+      await this.personRepo.updatePerson(person);
     }
 
-    person.markEmailVerified();
-    await this.personRepo.updatePerson(person);
-
-    const accessToken = this.tokenService.generateAccessToken(
-      person.pid,
-      person.userName,
-      person.activeRid ? person.activeRid : 0
-    );
-
+    const activeRid = person.activeRid ?? 1;
     return {
-      accessToken,
+      accessToken: this.tokenService.generateAccessToken(person.pid, person.userName, activeRid),
       personId: person.pid,
       userName: person.userName,
     };
