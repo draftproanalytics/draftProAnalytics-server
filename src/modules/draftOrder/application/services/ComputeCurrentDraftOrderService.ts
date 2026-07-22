@@ -1,4 +1,4 @@
-import type { GameFact } from '@/modules/draftOrder/domain/repositories/GameFactsRepository'
+import type { GameFact, TeamFact } from '@/modules/draftOrder/domain/repositories/GameFactsRepository'
 import type {
   CreateDraftOrderEntryRequest,
   CreateDraftOrderSnapshotRequest,
@@ -15,87 +15,167 @@ interface TeamAgg {
   pointsFor: number
   pointsAgainst: number
   opponents: number[]
+  defeatedOpponents: number[]
 }
 
-function winPct(w: number, l: number, t: number): number {
-  const g = w + l + t
-  if (g === 0) return 0
-  return (w + 0.5 * t) / g
+interface Row extends TeamAgg, TeamFact {
+  winPct: number
+  sos: number
+  sov: number
+  combinedPointsRank: number
 }
 
-function toDec5(x: number): string {
-  return x.toFixed(5)
-}
-
-type GameDigest = {
-  id: string
-  week: number | null
-  h: number
-  a: number
-  hs: number | null
-  as: number | null
-}
-
-function cmpGameDigest(a: GameDigest, b: GameDigest): number {
-  if (a.id !== b.id) return a.id < b.id ? -1 : 1
-  const aw = a.week ?? -1
-  const bw = b.week ?? -1
-  if (aw !== bw) return aw - bw
-  if (a.h !== b.h) return a.h - b.h
-  if (a.a !== b.a) return a.a - b.a
-  const ahs = a.hs ?? -1
-  const bhs = b.hs ?? -1
-  if (ahs !== bhs) return ahs - bhs
-  const aas = a.as ?? -1
-  const bas = b.as ?? -1
-  return aas - bas
-}
-
-type Row = {
-  teamId: number
+interface PairMetric {
+  games: number
   wins: number
   losses: number
   ties: number
-  winPct: number
-  sos: number
-  pointsFor: number
-  pointsAgainst: number
 }
 
-function pointDiff(r: Row): number {
-  return r.pointsFor - r.pointsAgainst
+function winPct(wins: number, losses: number, ties: number): number {
+  const games = wins + losses + ties
+  return games === 0 ? 0 : (wins + ties * 0.5) / games
 }
 
-function cmpFinalDraftOrder(a: Row, b: Row): number {
-  if (a.winPct !== b.winPct) return a.winPct - b.winPct
-  if (a.sos !== b.sos) return a.sos - b.sos
-  const aDiff = pointDiff(a)
-  const bDiff = pointDiff(b)
-  if (aDiff !== bDiff) return aDiff - bDiff
+function toDec5(value: number): string {
+  return value.toFixed(5)
+}
+
+function compareNumber(a: number, b: number): number {
+  const delta = a - b
+  return Math.abs(delta) < 0.0000001 ? 0 : delta
+}
+
+function pairKey(teamA: number, teamB: number): string {
+  return `${teamA}:${teamB}`
+}
+
+function getPairMetric(metrics: ReadonlyMap<string, PairMetric>, teamId: number, opponentId: number): PairMetric {
+  return metrics.get(pairKey(teamId, opponentId)) ?? { games: 0, wins: 0, losses: 0, ties: 0 }
+}
+
+function recordMetric(metric: PairMetric, result: 'win' | 'loss' | 'tie'): void {
+  metric.games += 1
+  if (result === 'win') metric.wins += 1
+  else if (result === 'loss') metric.losses += 1
+  else metric.ties += 1
+}
+
+function opponentAggregate(opponentIds: readonly number[], byTeamId: ReadonlyMap<number, TeamAgg>): number {
+  let wins = 0
+  let losses = 0
+  let ties = 0
+  for (const opponentId of opponentIds) {
+    const opponent = byTeamId.get(opponentId)
+    if (!opponent) continue
+    wins += opponent.wins
+    losses += opponent.losses
+    ties += opponent.ties
+  }
+  return winPct(wins, losses, ties)
+}
+
+function commonOpponents(a: Row, b: Row): readonly number[] {
+  const aSet = new Set(a.opponents)
+  return [...new Set(b.opponents.filter((opponentId) => aSet.has(opponentId) && opponentId !== a.teamId && opponentId !== b.teamId))]
+}
+
+function percentageAgainst(
+  teamId: number,
+  opponentIds: readonly number[],
+  pairMetrics: ReadonlyMap<string, PairMetric>
+): { percentage: number; games: number } {
+  let wins = 0
+  let losses = 0
+  let ties = 0
+  let games = 0
+  for (const opponentId of opponentIds) {
+    const metric = getPairMetric(pairMetrics, teamId, opponentId)
+    games += metric.games
+    wins += metric.wins
+    losses += metric.losses
+    ties += metric.ties
+  }
+  return { percentage: winPct(wins, losses, ties), games }
+}
+
+function netPoints(row: Row): number {
+  return row.pointsFor - row.pointsAgainst
+}
+
+function compareTieBreakers(a: Row, b: Row, pairMetrics: ReadonlyMap<string, PairMetric>): number {
+  let result = compareNumber(a.sos, b.sos)
+  if (result !== 0) return result
+
+  const headToHeadA = getPairMetric(pairMetrics, a.teamId, b.teamId)
+  const headToHeadB = getPairMetric(pairMetrics, b.teamId, a.teamId)
+  if (headToHeadA.games > 0 && headToHeadA.games === headToHeadB.games) {
+    result = compareNumber(
+      winPct(headToHeadA.wins, headToHeadA.losses, headToHeadA.ties),
+      winPct(headToHeadB.wins, headToHeadB.losses, headToHeadB.ties)
+    )
+    if (result !== 0) return result
+  }
+
+  const common = commonOpponents(a, b)
+  const commonA = percentageAgainst(a.teamId, common, pairMetrics)
+  const commonB = percentageAgainst(b.teamId, common, pairMetrics)
+  if (commonA.games >= 4 && commonB.games >= 4) {
+    result = compareNumber(commonA.percentage, commonB.percentage)
+    if (result !== 0) return result
+  }
+
+  result = compareNumber(a.sov, b.sov)
+  if (result !== 0) return result
+
+  // A lower combined league rank is better. Better teams receive the later pick,
+  // so reverse this metric while sorting from pick 1 to pick 32.
+  result = compareNumber(b.combinedPointsRank, a.combinedPointsRank)
+  if (result !== 0) return result
+
+  result = compareNumber(netPoints(a), netPoints(b))
+  if (result !== 0) return result
+
+  // A database-stable fallback is required for a weekly calculation. The NFL's
+  // final unresolved tiebreak is a coin toss; DPA records this as deterministic fallback.
   return a.teamId - b.teamId
 }
 
-/**
- * Returns contiguous groups where keys are equal according to cmpSameGroup.
- * Expects `rows` already sorted by the grouping key(s) that define adjacency.
- */
-function findTieGroups(
-  rows: readonly Row[],
-  sameGroup: (a: Row, b: Row) => boolean
-): ReadonlyArray<readonly Row[]> {
-  const groups: Row[][] = []
-  let i = 0
-  while (i < rows.length) {
-    const g: Row[] = [rows[i]]
-    let j = i + 1
-    while (j < rows.length && sameGroup(rows[j - 1], rows[j])) {
-      g.push(rows[j])
-      j++
-    }
-    if (g.length > 1) groups.push(g)
-    i = j
+function buildAudit(row: Row, tiedOnRecord: boolean): readonly CreateDraftOrderTiebreakAuditRequest[] {
+  const audits: CreateDraftOrderTiebreakAuditRequest[] = [
+    {
+      stepNbr: 1,
+      ruleCode: 'WIN_PCT',
+      resultCode: 'APPLIED',
+      resultSummary: `winPct=${toDec5(row.winPct)}`,
+      detailsJson: { wins: row.wins, losses: row.losses, ties: row.ties },
+    },
+  ]
+
+  if (tiedOnRecord) {
+    audits.push(
+      {
+        stepNbr: 2,
+        ruleCode: 'SOS',
+        resultCode: 'APPLIED',
+        resultSummary: `sos=${toDec5(row.sos)}`,
+        detailsJson: null,
+      },
+      {
+        stepNbr: 3,
+        ruleCode: 'NFL_TIEBREAK_CHAIN',
+        resultCode: 'AVAILABLE_AS_NEEDED',
+        resultSummary: 'head-to-head, common games, strength of victory, combined points rank, net points',
+        detailsJson: {
+          strengthOfVictory: toDec5(row.sov),
+          combinedPointsRank: row.combinedPointsRank,
+          netPoints: netPoints(row),
+        },
+      }
+    )
   }
-  return groups
+
+  return audits
 }
 
 export class ComputeCurrentDraftOrderService {
@@ -103,25 +183,18 @@ export class ComputeCurrentDraftOrderService {
     seasonYear: string
     seasonType: number
     throughWeek: number | null
+    teams: ReadonlyArray<TeamFact>
     games: ReadonlyArray<GameFact>
     mode?: DraftOrderMode
     strategy?: string | null
   }): { snapshot: CreateDraftOrderSnapshotRequest } {
-    const { seasonYear, seasonType, throughWeek, games } = args
-
-    const mode: DraftOrderMode = args.mode ?? 'current'
-    const strategy: string | null =
-      mode === 'projection'
-        ? typeof args.strategy === 'string' && args.strategy.length > 0
-          ? args.strategy
-          : 'baseline'
-        : null
-    const isProjected: boolean = mode === 'projection'
-
-    const teams = new Map<number, TeamAgg>()
+    const mode = args.mode ?? 'current'
+    const strategy = mode === 'projection' ? args.strategy?.trim() || 'baseline' : null
+    const aggregates = new Map<number, TeamAgg>()
+    const pairMetrics = new Map<string, PairMetric>()
 
     const ensure = (teamId: number): TeamAgg => {
-      const existing = teams.get(teamId)
+      const existing = aggregates.get(teamId)
       if (existing) return existing
       const created: TeamAgg = {
         wins: 0,
@@ -130,171 +203,123 @@ export class ComputeCurrentDraftOrderService {
         pointsFor: 0,
         pointsAgainst: 0,
         opponents: [],
+        defeatedOpponents: [],
       }
-      teams.set(teamId, created)
+      aggregates.set(teamId, created)
       return created
     }
 
-    for (const g of games) {
-      const home = ensure(g.homeTeamId)
-      const away = ensure(g.awayTeamId)
+    for (const team of args.teams) ensure(team.teamId)
 
-      home.opponents.push(g.awayTeamId)
-      away.opponents.push(g.homeTeamId)
+    for (const game of args.games) {
+      if (game.homeScore === null || game.awayScore === null) continue
+      const home = ensure(game.homeTeamId)
+      const away = ensure(game.awayTeamId)
+      home.opponents.push(game.awayTeamId)
+      away.opponents.push(game.homeTeamId)
+      home.pointsFor += game.homeScore
+      home.pointsAgainst += game.awayScore
+      away.pointsFor += game.awayScore
+      away.pointsAgainst += game.homeScore
 
-      const hs = g.homeScore ?? 0
-      const as = g.awayScore ?? 0
+      const homeMetric = pairMetrics.get(pairKey(game.homeTeamId, game.awayTeamId)) ?? { games: 0, wins: 0, losses: 0, ties: 0 }
+      const awayMetric = pairMetrics.get(pairKey(game.awayTeamId, game.homeTeamId)) ?? { games: 0, wins: 0, losses: 0, ties: 0 }
+      pairMetrics.set(pairKey(game.homeTeamId, game.awayTeamId), homeMetric)
+      pairMetrics.set(pairKey(game.awayTeamId, game.homeTeamId), awayMetric)
 
-      home.pointsFor += hs
-      home.pointsAgainst += as
-      away.pointsFor += as
-      away.pointsAgainst += hs
-
-      if (hs > as) {
+      if (game.homeScore > game.awayScore) {
         home.wins += 1
         away.losses += 1
-      } else if (as > hs) {
+        home.defeatedOpponents.push(game.awayTeamId)
+        recordMetric(homeMetric, 'win')
+        recordMetric(awayMetric, 'loss')
+      } else if (game.awayScore > game.homeScore) {
         away.wins += 1
         home.losses += 1
+        away.defeatedOpponents.push(game.homeTeamId)
+        recordMetric(homeMetric, 'loss')
+        recordMetric(awayMetric, 'win')
       } else {
         home.ties += 1
         away.ties += 1
+        recordMetric(homeMetric, 'tie')
+        recordMetric(awayMetric, 'tie')
       }
     }
 
-    // SOS = opponents combined winPct (simple; deterministic)
-    const sosByTeam = new Map<number, number>()
-    for (const [teamId, agg] of teams.entries()) {
-      let oppW = 0
-      let oppL = 0
-      let oppT = 0
-
-      for (const oppId of agg.opponents) {
-        const opp = teams.get(oppId)
-        if (!opp) continue
-        oppW += opp.wins
-        oppL += opp.losses
-        oppT += opp.ties
-      }
-
-      sosByTeam.set(teamId, winPct(oppW, oppL, oppT))
-    }
-
-    const rows: Row[] = Array.from(teams.entries()).map(([teamId, agg]) => ({
-      teamId,
-      wins: agg.wins,
-      losses: agg.losses,
-      ties: agg.ties,
-      winPct: winPct(agg.wins, agg.losses, agg.ties),
-      sos: sosByTeam.get(teamId) ?? 0,
-      pointsFor: agg.pointsFor,
-      pointsAgainst: agg.pointsAgainst,
-    }))
-
-    // Sort using the full comparator you actually use to assign slots.
-    rows.sort(cmpFinalDraftOrder)
-
-    // Determine which tiebreak steps were actually needed per row.
-    // Strategy:
-    // - Everyone gets step 1 (WIN_PCT).
-    // - If there is any tie on winPct group that spans >1 teams, then those teams also get step 2.
-    // - Within winPct ties, if there are ties on (winPct,sos) groups >1 teams, those teams also get step 3.
-    const needsStep2 = new Set<number>()
-    const needsStep3 = new Set<number>()
-
-    const winPctTies = findTieGroups(rows, (a, b) => a.winPct === b.winPct)
-    for (const g of winPctTies) {
-      for (const r of g) needsStep2.add(r.teamId)
-    }
-
-    // Within tied winPct groups, check (winPct,sos) ties
-    for (const g of winPctTies) {
-      const sorted = [...g].sort(cmpFinalDraftOrder) // ensure adjacency by sos/diff/teamId
-      const sosTies = findTieGroups(sorted, (a, b) => a.winPct === b.winPct && a.sos === b.sos)
-      for (const sg of sosTies) {
-        for (const r of sg) needsStep3.add(r.teamId)
-      }
-    }
-
-    const entries: CreateDraftOrderEntryRequest[] = rows.map((r, idx) => {
-      const audits: CreateDraftOrderTiebreakAuditRequest[] = []
-
-      // Step 1 always
-      audits.push({
-        stepNbr: 1,
-        ruleCode: 'WIN_PCT',
-        resultCode: 'APPLIED',
-        resultSummary: `winPct=${toDec5(r.winPct)}`,
-        detailsJson: { wins: r.wins, losses: r.losses, ties: r.ties },
-      })
-
-      // Step 2 only if it was needed (winPct tie group)
-      if (needsStep2.has(r.teamId)) {
-        audits.push({
-          stepNbr: 2,
-          ruleCode: 'SOS',
-          resultCode: 'APPLIED',
-          resultSummary: `sos=${toDec5(r.sos)}`,
-          detailsJson: null,
-        })
-      }
-
-      // Step 3 only if it was needed (still tied after SOS)
-      if (needsStep3.has(r.teamId)) {
-        audits.push({
-          stepNbr: 3,
-          ruleCode: 'POINT_DIFF',
-          resultCode: 'APPLIED',
-          resultSummary: `diff=${pointDiff(r)}`,
-          detailsJson: { pointsFor: r.pointsFor, pointsAgainst: r.pointsAgainst },
-        })
-      }
-
+    const baseRows = args.teams.map((team) => {
+      const aggregate = ensure(team.teamId)
       return {
-        teamId: r.teamId,
-        draftSlot: idx + 1,
-        isPlayoff: false,
-        isProjected,
-        wins: r.wins,
-        losses: r.losses,
-        ties: r.ties,
-        winPct: toDec5(r.winPct),
-        sos: toDec5(r.sos),
-        pointsFor: r.pointsFor,
-        pointsAgainst: r.pointsAgainst,
-        audits,
+        ...team,
+        ...aggregate,
+        winPct: winPct(aggregate.wins, aggregate.losses, aggregate.ties),
+        sos: opponentAggregate(aggregate.opponents, aggregates),
+        sov: opponentAggregate(aggregate.defeatedOpponents, aggregates),
+        combinedPointsRank: 0,
       }
     })
 
-    const gameDigest: GameDigest[] = games
-      .map((g) => ({
-        id: String(g.gameId),
-        week: g.week ?? null,
-        h: g.homeTeamId,
-        a: g.awayTeamId,
-        hs: g.homeScore ?? null,
-        as: g.awayScore ?? null,
-      }))
-      .sort(cmpGameDigest)
+    const pointsForRanks = [...baseRows].sort((a, b) => b.pointsFor - a.pointsFor || a.teamId - b.teamId)
+    const pointsAgainstRanks = [...baseRows].sort((a, b) => a.pointsAgainst - b.pointsAgainst || a.teamId - b.teamId)
+    const forRank = new Map(pointsForRanks.map((row, index) => [row.teamId, index + 1]))
+    const againstRank = new Map(pointsAgainstRanks.map((row, index) => [row.teamId, index + 1]))
+
+    const rows: Row[] = baseRows.map((row) => ({
+      ...row,
+      combinedPointsRank: (forRank.get(row.teamId) ?? args.teams.length) + (againstRank.get(row.teamId) ?? args.teams.length),
+    }))
+
+    rows.sort((a, b) => compareNumber(a.winPct, b.winPct) || compareTieBreakers(a, b, pairMetrics))
+
+    const recordCounts = new Map<string, number>()
+    for (const row of rows) {
+      const key = `${row.wins}-${row.losses}-${row.ties}`
+      recordCounts.set(key, (recordCounts.get(key) ?? 0) + 1)
+    }
+
+    const entries: CreateDraftOrderEntryRequest[] = rows.map((row, index) => ({
+      teamId: row.teamId,
+      draftSlot: index + 1,
+      isPlayoff: false,
+      isProjected: mode === 'projection',
+      wins: row.wins,
+      losses: row.losses,
+      ties: row.ties,
+      winPct: toDec5(row.winPct),
+      sos: toDec5(row.sos),
+      pointsFor: row.pointsFor,
+      pointsAgainst: row.pointsAgainst,
+      audits: buildAudit(row, (recordCounts.get(`${row.wins}-${row.losses}-${row.ties}`) ?? 0) > 1),
+    }))
 
     const inputHash = sha256Hex(
       JSON.stringify({
         mode,
         strategy,
-        seasonYear,
-        seasonType,
-        throughWeek,
-        games: gameDigest,
+        seasonYear: args.seasonYear,
+        seasonType: args.seasonType,
+        throughWeek: args.throughWeek,
+        teamIds: args.teams.map((team) => team.teamId).sort((a, b) => a - b),
+        games: args.games
+          .map((game) => ({
+            id: game.gameId,
+            week: game.week,
+            homeTeamId: game.homeTeamId,
+            awayTeamId: game.awayTeamId,
+            homeScore: game.homeScore,
+            awayScore: game.awayScore,
+          }))
+          .sort((a, b) => a.id - b.id),
       })
     )
 
     const snapshot: CreateDraftOrderSnapshotRequest = {
       mode,
       strategy,
-      seasonYear,
-      seasonType,
-      throughWeek,
-      source: 'internal',
+      seasonYear: args.seasonYear,
+      seasonType: args.seasonType,
+      throughWeek: args.throughWeek,
+      source: 'internal-nfl-rules',
       inputHash,
       computedAt: new Date(),
       entries,

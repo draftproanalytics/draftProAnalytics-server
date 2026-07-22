@@ -1,6 +1,12 @@
-// src/modules/draftOrder/domain/repositories/GameFactsRepository
-
 import type { Game_gameStatus } from '@prisma/client'
+
+export interface TeamFact {
+  readonly teamId: number
+  readonly name: string
+  readonly abbreviation: string | null
+  readonly conference: string | null
+  readonly division: string | null
+}
 
 export interface GameFact {
   readonly gameId: number
@@ -21,6 +27,6 @@ export interface ListGameFactsQuery {
 }
 
 export interface GameFactsRepository {
+  listTeams(): Promise<ReadonlyArray<TeamFact>>
   listFinalGames(query: ListGameFactsQuery): Promise<ReadonlyArray<GameFact>>
 }
-

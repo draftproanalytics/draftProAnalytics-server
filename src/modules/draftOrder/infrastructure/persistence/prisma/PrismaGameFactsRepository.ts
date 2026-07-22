@@ -1,13 +1,34 @@
-// src/modules/draftOrder/infrastructure/persistence/prisma/PrismaGameFactsRepository.ts
 import type { PrismaClient, Game_gameStatus } from '@prisma/client'
 import type {
   GameFact,
   GameFactsRepository,
   ListGameFactsQuery,
+  TeamFact,
 } from '@/modules/draftOrder/domain/repositories/GameFactsRepository'
 
 export class PrismaGameFactsRepository implements GameFactsRepository {
   public constructor(private readonly prisma: PrismaClient) {}
+
+  public async listTeams(): Promise<ReadonlyArray<TeamFact>> {
+    const rows = await this.prisma.team.findMany({
+      orderBy: [{ conference: 'asc' }, { division: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        abbreviation: true,
+        conference: true,
+        division: true,
+      },
+    })
+
+    return rows.map((row) => ({
+      teamId: row.id,
+      name: row.name,
+      abbreviation: row.abbreviation,
+      conference: row.conference,
+      division: row.division,
+    }))
+  }
 
   public async listFinalGames(query: ListGameFactsQuery): Promise<ReadonlyArray<GameFact>> {
     const rows = await this.prisma.game.findMany({
@@ -31,17 +52,16 @@ export class PrismaGameFactsRepository implements GameFactsRepository {
       },
     })
 
-    return rows.map((r): GameFact => ({
-      gameId: r.id,
-      seasonYear: r.seasonYear,
-      //seasonType: r.seasonType ?? 2,
-      seasonType: r.seasonType ?? query.seasonType,
-      week: r.gameWeek ?? null,
-      homeTeamId: r.homeTeamId,
-      awayTeamId: r.awayTeamId,
-      homeScore: r.homeScore ?? null,
-      awayScore: r.awayScore ?? null,
-      status: r.gameStatus,
+    return rows.map((row) => ({
+      gameId: row.id,
+      seasonYear: row.seasonYear,
+      seasonType: row.seasonType ?? query.seasonType,
+      week: row.gameWeek ?? null,
+      homeTeamId: row.homeTeamId,
+      awayTeamId: row.awayTeamId,
+      homeScore: row.homeScore ?? null,
+      awayScore: row.awayScore ?? null,
+      status: row.gameStatus,
     }))
   }
 }

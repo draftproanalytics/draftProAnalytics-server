@@ -12,16 +12,20 @@ export class ComputeCurrentDraftOrderUseCaseImpl implements ComputeCurrentDraftO
   ) {}
 
   public async execute(params: ComputeCurrentDraftOrderParams): Promise<DraftOrderSnapshotDetailDto> {
-    const games = await this.gameFactsRepo.listFinalGames({
-      seasonYear: params.seasonYear,
-      seasonType: params.seasonType,
-      throughWeek: params.throughWeek,
-    })
+    const [teams, games] = await Promise.all([
+      this.gameFactsRepo.listTeams(),
+      this.gameFactsRepo.listFinalGames({
+        seasonYear: params.seasonYear,
+        seasonType: params.seasonType,
+        throughWeek: params.throughWeek,
+      }),
+    ])
 
     const { snapshot } = this.svc.compute({
       seasonYear: params.seasonYear,
-      seasonType: params.seasonType,
+        seasonType: params.seasonType,
       throughWeek: params.throughWeek,
+      teams,
       games,
     })
 
