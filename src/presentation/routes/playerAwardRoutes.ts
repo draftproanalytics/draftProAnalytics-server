@@ -53,6 +53,31 @@ router.get(
   playerAwardController.getAllPlayerAwards
 );
 
+// Specific routes must be registered before the generic /:id route.
+router.get(
+  '/player/:playerId/count',
+  validateParams(PlayerIdParamsSchema),
+  playerAwardController.getPlayerAwardCount
+);
+
+router.get(
+  '/player/:playerId',
+  validateParams(PlayerIdParamsSchema),
+  playerAwardController.getPlayerAwardsByPlayerId
+);
+
+router.get(
+  '/award/:awardName',
+  validateParams(AwardNameParamsSchema),
+  playerAwardController.getPlayerAwardsByAwardName
+);
+
+router.get(
+  '/year/:year',
+  validateParams(YearParamsSchema),
+  playerAwardController.getPlayerAwardsByYear
+);
+
 router.get(
   '/:id',
   validateParams(IdParamsSchema),
@@ -70,31 +95,6 @@ router.delete(
   '/:id',
   validateParams(IdParamsSchema),
   playerAwardController.deletePlayerAward
-);
-
-// Additional routes for specific queries
-router.get(
-  '/player/:playerId',
-  validateParams(PlayerIdParamsSchema),
-  playerAwardController.getPlayerAwardsByPlayerId
-);
-
-router.get(
-  '/player/:playerId/count',
-  validateParams(PlayerIdParamsSchema),
-  playerAwardController.getPlayerAwardCount
-);
-
-router.get(
-  '/award/:awardName',
-  validateParams(AwardNameParamsSchema),
-  playerAwardController.getPlayerAwardsByAwardName
-);
-
-router.get(
-  '/year/:year',
-  validateParams(YearParamsSchema),
-  playerAwardController.getPlayerAwardsByYear
 );
 
 export { router as playerAwardRoutes };
