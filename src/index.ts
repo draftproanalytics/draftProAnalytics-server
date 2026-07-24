@@ -33,6 +33,8 @@ import fs from 'node:fs';
 import { prisma } from "@/infrastructure/database/prisma";
 import { createB4MeAnalysisRouter } from './modules/b4meAnalysis/presentation/routes/b4meAnalysis.routes';
 import { createB4MeImportRouter } from './modules/b4meImport/presentation/routes/b4meImport.routes';
+import { createPostDraftReportRouter } from './modules/postDraftReport/presentation/postDraftReport.routes';
+import { createPostDraftMetricsRouter } from './modules/postDraftMetrics/presentation/postDraftMetrics.routes';
 //import path from 'node:path';
 //import dotenv from 'dotenv';
 
@@ -85,6 +87,8 @@ app.get("/health", (_req, res) => {
 app.use('/api/jobs',createDpaJobsNflImportRouter(prisma), );
 app.use('/api/b4me', createB4MeAnalysisRouter(prisma));
 app.use('/api/b4me-import', createB4MeImportRouter(prisma));
+app.use('/api/post-draft-reports', createPostDraftReportRouter(prisma));
+app.use('/api/post-draft-metrics', createPostDraftMetricsRouter(prisma));
 app.use(API_BASE, apiRoutes);
 // ---- list all registered routes (debugging only)
 console.log("Registered routes:");

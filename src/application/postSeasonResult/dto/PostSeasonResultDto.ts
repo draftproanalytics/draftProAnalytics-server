@@ -13,15 +13,15 @@ export const CreatePostSeasonResultDtoSchema = z.object({
 export const UpdatePostSeasonResultDtoSchema = CreatePostSeasonResultDtoSchema.partial();
 
 export const PostSeasonResultFiltersDtoSchema = z.object({
-  teamId: z.number().positive().optional(),
-  playoffYear: z.number().min(1990).max(2030).optional(),
+  teamId: z.coerce.number().int().positive().optional(),
+  playoffYear: z.coerce.number().int().min(1990).max(2030).optional(),
   lastRoundReached: z.string().max(45).optional(),
   winLose: z.string().length(1).regex(/^[WLwl]$/).optional(),
 });
 
 export const PaginationDtoSchema = z.object({
-  page: z.number().min(1).optional().default(1),
-  limit: z.number().min(1).max(100).optional().default(10),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(10),
 });
 
 export type CreatePostSeasonResultDto = z.infer<typeof CreatePostSeasonResultDtoSchema>;

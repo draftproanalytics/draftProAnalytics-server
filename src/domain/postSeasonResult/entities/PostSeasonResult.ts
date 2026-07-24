@@ -38,16 +38,30 @@ export class PostSeasonResult {
     team?: {
       id: number;
       name: string;
-      city: string | null;        // ✅ YOUR DATABASE HAS THIS
-      state: string | null;       // ✅ YOUR DATABASE HAS THIS
-      conference: string | null;  // ✅ YOUR DATABASE HAS THIS
-      division: string | null;    // ✅ YOUR DATABASE HAS THIS (string, not enum)
-      stadium: string | null;     // ✅ YOUR DATABASE HAS THIS
-      scheduleId: number | null;  // ✅ YOUR DATABASE HAS THIS
+      city: string | null;
+      state: string | null;
+      conference: string | null;
+      division: string | null;
+      stadium: string | null;
+      scheduleId: number | null;
+      espnTeamId: number | null;
+      abbreviation: string | null;
+    } | null;
+    Team?: {
+      id: number;
+      name: string;
+      city: string | null;
+      state: string | null;
+      conference: string | null;
+      division: string | null;
+      stadium: string | null;
+      scheduleId: number | null;
       espnTeamId: number | null;
       abbreviation: string | null;
     } | null;
   }): PostSeasonResult {
+    const persistedTeam = data.team ?? data.Team;
+
     return new PostSeasonResult({
       id: data.id,
       playoffYear: data.playoffYear || undefined,
@@ -56,7 +70,7 @@ export class PostSeasonResult {
       opponentScore: data.opponentScore || undefined,
       teamScore: data.teamScore || undefined,
       teamId: data.teamId || undefined,
-      team: data.team ? Team.fromPersistence(data.team) : undefined,
+      team: persistedTeam ? Team.fromPersistence(persistedTeam) : undefined,
       createdAt: data.createdAt || undefined,
       updatedAt: data.updatedAt || undefined,
     });

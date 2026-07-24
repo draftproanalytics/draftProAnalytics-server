@@ -28,7 +28,7 @@ model CombineScore {
 }
 
 model DraftPick {
-  id                                       Int                 @id @default(autoincrement())
+  id                                       Int                       @id @default(autoincrement())
   draftEventId                             Int
   round                                    Int
   pickInRound                              Int
@@ -37,29 +37,30 @@ model DraftPick {
   currentTeamId                            Int
   prospectId                               Int?
   playerId                                 Int?
-  status                                   DraftPick_status    @default(SCHEDULED)
-  isCompensatory                           Boolean             @default(false)
-  acquiredViaTrade                         Boolean             @default(false)
-  playerFirstName                          String?             @db.VarChar(45)
-  playerLastName                           String?             @db.VarChar(45)
-  used                                     Boolean             @default(false)
-  createdAt                                DateTime?           @default(now()) @db.Timestamp(0)
-  updatedAt                                DateTime?           @default(now()) @db.Timestamp(0)
+  status                                   DraftPick_status          @default(SCHEDULED)
+  isCompensatory                           Boolean                   @default(false)
+  acquiredViaTrade                         Boolean                   @default(false)
+  playerFirstName                          String?                   @db.VarChar(45)
+  playerLastName                           String?                   @db.VarChar(45)
+  used                                     Boolean                   @default(false)
+  createdAt                                DateTime?                 @default(now()) @db.Timestamp(0)
+  updatedAt                                DateTime?                 @default(now()) @db.Timestamp(0)
   originalTeam                             Int?
-  position                                 String?             @db.VarChar(45)
-  college                                  String?             @db.VarChar(255)
-  selectedAt                               DateTime?           @db.DateTime(0)
-  pickGrade                                String?             @db.VarChar(5)
-  valueGrade                               String?             @db.VarChar(5)
-  needsFitGrade                            String?             @db.VarChar(5)
-  analystNotes                             String?             @db.Text
-  tradeNotes                               String?             @db.Text
-  Team                                     Team                @relation(fields: [currentTeamId], references: [id], map: "fk_DraftPick_CurrentTeam")
-  Player                                   Player?             @relation(fields: [playerId], references: [id], map: "fk_DraftPick_Player")
-  Prospect_DraftPick_prospectIdToProspect  Prospect?           @relation("DraftPick_prospectIdToProspect", fields: [prospectId], references: [id], map: "fk_DraftPick_Prospect")
-  DraftEvent                               DraftEvent          @relation(fields: [draftEventId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_draft_pick_event")
+  position                                 String?                   @db.VarChar(45)
+  college                                  String?                   @db.VarChar(255)
+  selectedAt                               DateTime?                 @db.DateTime(0)
+  pickGrade                                String?                   @db.VarChar(5)
+  valueGrade                               String?                   @db.VarChar(5)
+  needsFitGrade                            String?                   @db.VarChar(5)
+  analystNotes                             String?                   @db.Text
+  tradeNotes                               String?                   @db.Text
+  Team                                     Team                      @relation(fields: [currentTeamId], references: [id], map: "fk_DraftPick_CurrentTeam")
+  Player                                   Player?                   @relation(fields: [playerId], references: [id], map: "fk_DraftPick_Player")
+  Prospect_DraftPick_prospectIdToProspect  Prospect?                 @relation("DraftPick_prospectIdToProspect", fields: [prospectId], references: [id], map: "fk_DraftPick_Prospect")
+  DraftEvent                               DraftEvent                @relation(fields: [draftEventId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_draft_pick_event")
   DraftPickAuditLog                        DraftPickAuditLog[]
-  Prospect_Prospect_draftPickIdToDraftPick Prospect[]          @relation("Prospect_draftPickIdToDraftPick")
+  PostDraftPickEvaluation                  PostDraftPickEvaluation[]
+  Prospect_Prospect_draftPickIdToDraftPick Prospect[]                @relation("Prospect_draftPickIdToDraftPick")
 
   @@unique([draftEventId, pickNumber], map: "uq_DraftPick_event_pickNumber")
   @@unique([draftEventId, round, pickInRound], map: "uq_DraftPick_event_round_pickInRound")
@@ -154,8 +155,8 @@ model PlayerTeam {
   id             Int     @id @default(autoincrement())
   playerId       Int
   teamId         Int
-  currentTeam    Boolean @default(false)
   position       String? @db.VarChar(10)
+  currentTeam    Boolean @default(false)
   jerseyNumber   Int?
   contractValue  Int?
   contractLength Int?
@@ -213,6 +214,8 @@ model Prospect {
   DraftPick_DraftPick_prospectIdToProspect  DraftPick[]                 @relation("DraftPick_prospectIdToProspect")
   DraftSimulationPick                       DraftSimulationPick[]
   Player                                    Player[]
+  PostDraftPickEvaluation                   PostDraftPickEvaluation[]
+  PostDraftWRMetric                         PostDraftWRMetric[]
   DraftPick_Prospect_draftPickIdToDraftPick DraftPick?                  @relation("Prospect_draftPickIdToDraftPick", fields: [draftPickId], references: [id], map: "fk_Prospect_DraftPick")
   Team                                      Team?                       @relation(fields: [teamId], references: [id], map: "fk_Prospect_Team")
   ProspectRanking                           ProspectRanking[]
@@ -305,6 +308,7 @@ model Team {
   Game_Game_homeTeamIdToTeam                                   Game[]                 @relation("Game_homeTeamIdToTeam")
   Game_Game_awayTeamIdToTeam                                   Game[]                 @relation("Game_awayTeamIdToTeam")
   PlayerTeam                                                   PlayerTeam[]
+  PostDraftReport                                              PostDraftReport[]
   PostSeasonResult                                             PostSeasonResult[]
   Prospect                                                     Prospect[]
   Schedule_Schedule_teamIdToTeam                               Schedule[]             @relation("Schedule_teamIdToTeam")
@@ -1338,6 +1342,196 @@ model DraftPick_backup_before_2025_picknumber_fix {
   tradeNotes       String?                                            @db.Text
 
   @@ignore
+}
+
+model PostDraftEvaluationModel {
+  id              BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  modelKey        String            @db.VarChar(64)
+  modelVersion    String            @db.VarChar(32)
+  positionGroup   String            @default("ALL") @db.VarChar(16)
+  modelName       String            @db.VarChar(150)
+  description     String?           @db.VarChar(500)
+  weightsJson     Json
+  thresholdsJson  Json
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now()) @db.DateTime(0)
+  updatedAt       DateTime          @default(now()) @db.DateTime(0)
+  PostDraftReport PostDraftReport[]
+
+  @@unique([modelKey, modelVersion, positionGroup], map: "uq_PostDraftEvaluationModel_key_version_position")
+  @@index([modelKey, positionGroup, isActive], map: "idx_PostDraftEvaluationModel_active")
+}
+
+model PostDraftMetricProviderRule {
+  id          BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  sourceType  String   @db.VarChar(32)
+  verified    Boolean
+  priority    Int      @unique(map: "uq_PostDraftMetricProviderRule_priority")
+  active      Boolean  @default(true)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @db.DateTime(0)
+  updatedAt   DateTime @default(now()) @db.DateTime(0)
+
+  @@unique([sourceType, verified], map: "uq_PostDraftMetricProviderRule_source_verified")
+}
+
+model PostDraftPickEvaluation {
+  id                 BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  reportId           BigInt          @db.UnsignedBigInt
+  draftPickId        Int
+  roundNumber        Int
+  pickNumber         Int
+  prospectId         Int?
+  playerName         String          @db.VarChar(150)
+  position           String          @db.VarChar(16)
+  overallScore       Decimal         @db.Decimal(6, 2)
+  letterGrade        String          @db.VarChar(5)
+  dataConfidence     Decimal         @db.Decimal(6, 2)
+  scoreBreakdownJson Json
+  wrEvaluationJson   Json?
+  missingSignalsJson Json
+  summary            String          @db.Text
+  createdAt          DateTime        @default(now()) @db.DateTime(0)
+  draftPick          DraftPick       @relation(fields: [draftPickId], references: [id], map: "fk_PostDraftPickEvaluation_DraftPick")
+  prospect           Prospect?       @relation(fields: [prospectId], references: [id], map: "fk_PostDraftPickEvaluation_Prospect")
+  report             PostDraftReport @relation(fields: [reportId], references: [id], onDelete: Cascade, map: "fk_PostDraftPickEvaluation_Report")
+
+  @@unique([reportId, draftPickId], map: "uq_PostDraftPickEvaluation_report_pick")
+  @@index([draftPickId], map: "fk_PostDraftPickEvaluation_DraftPick")
+  @@index([prospectId], map: "fk_PostDraftPickEvaluation_Prospect")
+  @@index([reportId, roundNumber, pickNumber], map: "idx_PostDraftPickEvaluation_report_round")
+}
+
+model PostDraftReport {
+  id                BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  teamId            Int
+  draftYear         Int      @db.Year
+  reportVersion     Int
+  status            String   @default("FINALIZED") @db.VarChar(16)
+  modelId           BigInt   @db.UnsignedBigInt
+  modelKey          String   @db.VarChar(64)
+  modelVersion      String   @db.VarChar(32)
+  overallScore      Decimal  @db.Decimal(6, 2)
+  overallGrade      String   @db.VarChar(5)
+  dataConfidence    Decimal  @db.Decimal(6, 2)
+  inputHash         String   @db.Char(64)
+  inputSnapshotJson Json
+  reportJson        Json
+  finalizedAt       DateTime @default(now()) @db.DateTime(0)
+  createdAt         DateTime @default(now()) @db.DateTime(0)
+
+  pickEvaluations  PostDraftPickEvaluation[]
+  roundEvaluations PostDraftRoundEvaluation[]
+  evaluationModel  PostDraftEvaluationModel   @relation(fields: [modelId], references: [id], map: "fk_PostDraftReport_Model")
+  team             Team                       @relation(fields: [teamId], references: [id], map: "fk_PostDraftReport_Team")
+
+  @@unique([teamId, draftYear, reportVersion], map: "uq_PostDraftReport_team_year_version")
+  @@index([modelId], map: "fk_PostDraftReport_Model")
+  @@index([inputHash], map: "idx_PostDraftReport_inputHash")
+  @@index([teamId, draftYear, finalizedAt], map: "idx_PostDraftReport_lookup")
+}
+
+model PostDraftRoundEvaluation {
+  id          BigInt          @id @default(autoincrement()) @db.UnsignedBigInt
+  reportId    BigInt          @db.UnsignedBigInt
+  roundNumber Int
+  score       Decimal         @db.Decimal(6, 2)
+  letterGrade String          @db.VarChar(5)
+  summary     String          @db.Text
+  createdAt   DateTime        @default(now()) @db.DateTime(0)
+  report      PostDraftReport @relation(fields: [reportId], references: [id], onDelete: Cascade, map: "fk_PostDraftRoundEvaluation_Report")
+
+  @@unique([reportId, roundNumber], map: "uq_PostDraftRoundEvaluation_report_round")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model PostDraftWRMetric {
+  id                              BigInt                       @id @default(autoincrement()) @db.UnsignedBigInt
+  prospectId                      Int
+  draftYear                       Int                          @db.Year
+  seasonYear                      Int                          @db.Year
+  yardsPerRouteRun                Decimal?                     @db.Decimal(6, 3)
+  receivingGrade                  Decimal?                     @db.Decimal(6, 2)
+  contestedCatchRate              Decimal?                     @db.Decimal(6, 2)
+  behindLosTargetRate             Decimal?                     @db.Decimal(6, 2)
+  catchRate                       Decimal?                     @db.Decimal(6, 2)
+  missedTacklesForcedPerReception Decimal?                     @db.Decimal(6, 3)
+  yacAfterContactPerReception     Decimal?                     @db.Decimal(6, 3)
+  sourceName                      String                       @db.VarChar(150)
+  sourceType                      String                       @db.VarChar(32)
+  sourceReference                 String?                      @db.VarChar(255)
+  sourceReferenceKey              String                       @default("") @db.VarChar(255)
+  enteredBy                       Int?
+  enteredAt                       DateTime                     @default(now()) @db.DateTime(0)
+  updatedAt                       DateTime                     @default(now()) @db.DateTime(0)
+  verified                        Boolean                      @default(false)
+  verifiedBy                      Int?
+  verifiedAt                      DateTime?                    @db.DateTime(0)
+  verificationNotes               String?                      @db.Text
+  notes                           String?                      @db.Text
+  rawPayloadJson                  Json?
+  providerPriority                Int?
+  active                          Boolean                      @default(true)
+  Prospect                        Prospect                     @relation(fields: [prospectId], references: [id], onDelete: Cascade, map: "fk_PostDraftWRMetric_Prospect")
+  PostDraftWRMetricAudit          PostDraftWRMetricAudit[]
+  PostDraftWRMetricImportRow      PostDraftWRMetricImportRow[]
+
+  @@unique([prospectId, draftYear, seasonYear, sourceType, sourceName, sourceReferenceKey], map: "uq_PostDraftWRMetric_logical")
+  @@index([prospectId, draftYear, active, verified, providerPriority], map: "idx_PostDraftWRMetric_resolution")
+  @@index([sourceType, sourceName], map: "idx_PostDraftWRMetric_source")
+}
+
+model PostDraftWRMetricAudit {
+  id                           BigInt                        @id @default(autoincrement()) @db.UnsignedBigInt
+  metricId                     BigInt                        @db.UnsignedBigInt
+  action                       String                        @db.VarChar(24)
+  actorPersonId                Int?
+  actorUserName                String?                       @db.VarChar(100)
+  previousValuesJson           Json?
+  newValuesJson                Json?
+  importBatchId                BigInt?                       @db.UnsignedBigInt
+  reason                       String?                       @db.Text
+  createdAt                    DateTime                      @default(now()) @db.DateTime(0)
+  PostDraftWRMetricImportBatch PostDraftWRMetricImportBatch? @relation(fields: [importBatchId], references: [id], map: "fk_PostDraftWRMetricAudit_Batch")
+  PostDraftWRMetric            PostDraftWRMetric             @relation(fields: [metricId], references: [id], map: "fk_PostDraftWRMetricAudit_Metric")
+
+  @@index([importBatchId], map: "idx_PostDraftWRMetricAudit_batch")
+  @@index([metricId, createdAt], map: "idx_PostDraftWRMetricAudit_metric_created")
+}
+
+model PostDraftWRMetricImportBatch {
+  id                         BigInt                       @id @default(autoincrement()) @db.UnsignedBigInt
+  status                     String                       @db.VarChar(20)
+  sourceFileName             String?                      @db.VarChar(255)
+  enteredBy                  Int?
+  totalRows                  Int                          @default(0)
+  validRows                  Int                          @default(0)
+  invalidRows                Int                          @default(0)
+  importedRows               Int                          @default(0)
+  skippedRows                Int                          @default(0)
+  startedAt                  DateTime                     @default(now()) @db.DateTime(0)
+  completedAt                DateTime?                    @db.DateTime(0)
+  notes                      String?                      @db.Text
+  PostDraftWRMetricAudit     PostDraftWRMetricAudit[]
+  PostDraftWRMetricImportRow PostDraftWRMetricImportRow[]
+
+  @@index([status, startedAt], map: "idx_PostDraftWRMetricImportBatch_status_started")
+}
+
+model PostDraftWRMetricImportRow {
+  id                           BigInt                       @id @default(autoincrement()) @db.UnsignedBigInt
+  batchId                      BigInt                       @db.UnsignedBigInt
+  rowNumber                    Int
+  status                       String                       @db.VarChar(20)
+  metricId                     BigInt?                      @db.UnsignedBigInt
+  rawRowJson                   Json
+  validationErrorsJson         Json?
+  createdAt                    DateTime                     @default(now()) @db.DateTime(0)
+  PostDraftWRMetricImportBatch PostDraftWRMetricImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade, map: "fk_PostDraftWRMetricImportRow_Batch")
+  PostDraftWRMetric            PostDraftWRMetric?           @relation(fields: [metricId], references: [id], map: "fk_PostDraftWRMetricImportRow_Metric")
+
+  @@unique([batchId, rowNumber], map: "uq_PostDraftWRMetricImportRow_batch_row")
+  @@index([metricId], map: "idx_PostDraftWRMetricImportRow_metric")
 }
 
 enum Job_status {

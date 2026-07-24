@@ -53,16 +53,18 @@ export class PostSeasonResultController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      const query = req.query as unknown as PostSeasonResultFiltersDto & PaginationDto;
+
       const filters: PostSeasonResultFiltersDto = {
-        teamId: req.query.teamId ? parseInt(req.query.teamId as string) : undefined,
-        playoffYear: req.query.playoffYear ? parseInt(req.query.playoffYear as string) : undefined,
-        lastRoundReached: req.query.lastRoundReached as string,
-        winLose: req.query.winLose as string,
+        teamId: query.teamId,
+        playoffYear: query.playoffYear,
+        lastRoundReached: query.lastRoundReached,
+        winLose: query.winLose,
       };
 
       const pagination: PaginationDto = {
-        page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        page: query.page,
+        limit: query.limit,
       };
 
       const postSeasonResults = await this.postSeasonResultService.getAllPostSeasonResults(filters, pagination);
