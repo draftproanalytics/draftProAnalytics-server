@@ -4,6 +4,9 @@ import { PostSeasonResult } from '@/domain/postSeasonResult/entities/PostSeasonR
 import { PaginationParams, PaginatedResponse } from '@/shared/types/common';
 import { NotFoundError } from '@/shared/errors/AppError';
 import { prisma } from '../database/prisma';
+import type { Prisma } from '@prisma/client';
+
+type PostSeasonResultWithTeam = Prisma.PostSeasonResultGetPayload<{ include: { Team: true } }>;
 
 export class PrismaPostSeasonResultRepository implements IPostSeasonResultRepository {
   
@@ -59,7 +62,7 @@ export class PrismaPostSeasonResultRepository implements IPostSeasonResultReposi
     ]);
 
     return {
-      data: postSeasonResults.map((postSeasonResult) => PostSeasonResult.fromPersistence(postSeasonResult)),
+      data: await Promise.all(postSeasonResults.map((postSeasonResult) => this.toDomainWithGameId(postSeasonResult))),
       pagination: {
         page,
         limit,
@@ -186,6 +189,40 @@ export class PrismaPostSeasonResultRepository implements IPostSeasonResultReposi
     });
 
     return postSeasonResults.map((result) => PostSeasonResult.fromPersistence(result));
+  }
+
+  private async toDomainWithGameId(record: PostSeasonResultWithTeam): Promise<PostSeasonResult> {
+    const gameId = await this.findMatchingGameId(record);
+    return PostSeasonResult.fromPersistence({ ...record, gameId });
+  }
+
+  private async findMatchingGameId(record: PostSeasonResultWithTeam): Promise<number | undefined> {
+    if (record.playoffYear === null || record.teamId === null || record.teamScore === null || record.opponentScore === null) {
+      return undefined;
+    }
+
+    const game = await prisma.game.findFirst({
+      where: {
+        seasonYear: String(record.playoffYear),
+        seasonType: 3,
+        OR: [
+          {
+            homeTeamId: record.teamId,
+            homeScore: record.teamScore,
+            awayScore: record.opponentScore,
+          },
+          {
+            awayTeamId: record.teamId,
+            awayScore: record.teamScore,
+            homeScore: record.opponentScore,
+          },
+        ],
+      },
+      orderBy: [{ gameDate: 'desc' }, { id: 'desc' }],
+      select: { id: true },
+    });
+
+    return game?.id;
   }
 
   private buildWhereClause(filters?: PostSeasonResultFilters): object {

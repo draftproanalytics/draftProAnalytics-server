@@ -60,6 +60,10 @@ const GameQueryInner = z
     dateTo: z.union([z.string(), z.date()]).optional(),
     page: z.coerce.number().int().min(1).optional(),
     limit: z.coerce.number().int().min(1).max(200).optional(),
+    sortField: z.enum(['gameWeek', 'gameDate']).optional(),
+    sortOrder: z.coerce.number().refine((value) => value === 1 || value === -1, {
+      message: 'sortOrder must be 1 or -1',
+    }).optional(),
   })
   .passthrough();
 

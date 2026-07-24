@@ -144,6 +144,12 @@ export class PrismaGameRepository implements IGameRepository {
     const skip = (page - 1) * limit;
 
     const where = this.buildWhere(filters);
+    const direction: Prisma.SortOrder = pagination?.sortOrder === -1 ? 'desc' : 'asc';
+    const orderBy: Prisma.GameOrderByWithRelationInput[] = pagination?.sortField === 'gameDate'
+      ? [{ gameDate: direction }, { gameWeek: 'asc' }, { id: 'asc' }]
+      : pagination?.sortField === 'gameWeek'
+        ? [{ gameWeek: direction }, { gameDate: 'asc' }, { id: 'asc' }]
+        : [{ seasonYear: 'desc' }, { gameWeek: 'asc' }, { gameDate: 'asc' }];
 
     console.log('filters: ', filters);
     console.log('where: ', where);
@@ -152,7 +158,7 @@ export class PrismaGameRepository implements IGameRepository {
         where,
         skip,
         take: limit,
-        orderBy: [{ seasonYear: 'desc' }, { gameWeek: 'asc' }, { gameDate: 'asc' }],
+        orderBy,
         include: this.teamInclude,
       }),
       this.prisma.game.count({ where }),

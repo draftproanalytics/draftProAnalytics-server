@@ -1,6 +1,8 @@
 export interface PaginationParams {
   page?: number;
   limit?: number;
+  sortField?: 'gameWeek' | 'gameDate';
+  sortOrder?: 1 | -1;
 }
 
 export interface PaginatedResponse<T> {

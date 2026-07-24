@@ -121,12 +121,14 @@ export class GameController {
       const qp = raw?.params ?? raw;
       const page = qp.page ? parseInt(String(qp.page), 10) : 1;
       const limit = qp.limit ? parseInt(String(qp.limit), 10) : 25;
+      const sortField = qp.sortField === 'gameDate' ? 'gameDate' : qp.sortField === 'gameWeek' ? 'gameWeek' : undefined;
+      const sortOrder = Number(qp.sortOrder) === -1 ? -1 : 1;
 
       // DEBUG (optional):
       // console.log('→ normalized filters:', filters);
       // console.log('→ page/limit:', { page, limit });
 
-      const { data, pagination } = await this.gameService.getAllGames(filters, { page, limit });
+      const { data, pagination } = await this.gameService.getAllGames(filters, { page, limit, sortField, sortOrder });
       const dtoGames = data.map(mapGameToResponse);
 
       res.set('X-Total-Count', String(pagination.total));

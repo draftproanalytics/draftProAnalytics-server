@@ -213,6 +213,7 @@ export class PostSeasonResultService {
 
     return {
       id: postSeasonResult.id!,
+      gameId: postSeasonResult.gameId,
       playoffYear: postSeasonResult.playoffYear,
       lastRoundReached: postSeasonResult.lastRoundReached,
       winLose: postSeasonResult.winLose,

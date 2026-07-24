@@ -31,6 +31,7 @@ export type PaginationDto = z.infer<typeof PaginationDtoSchema>;
 
 export interface PostSeasonResultResponseDto {
   id: number;
+  gameId?: number;
   playoffYear?: number;
   lastRoundReached?: string;
   winLose?: string;

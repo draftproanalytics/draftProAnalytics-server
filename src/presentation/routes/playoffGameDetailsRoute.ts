@@ -284,6 +284,24 @@ playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
         isPlayoff: true,
         seasonType: true,
         espnEventId: true,
+        homeScore: true,
+        awayScore: true,
+        homeTeam: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            abbreviation: true,
+          },
+        },
+        awayTeam: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            abbreviation: true,
+          },
+        },
       },
     });
 
@@ -305,18 +323,91 @@ playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
             isPlayoff: true,
             seasonType: true,
             espnEventId: true,
+            homeScore: true,
+            awayScore: true,
+            homeTeam: {
+              select: {
+                id: true,
+                name: true,
+                city: true,
+                abbreviation: true,
+              },
+            },
+            awayTeam: {
+              select: {
+                id: true,
+                name: true,
+                city: true,
+                abbreviation: true,
+              },
+            },
           },
         });
 
     const game = gameByDatabaseId ?? gameByEspnEventId;
-    const espnEventId = game?.espnEventId ?? requestedId;
+
+    if (!game) {
+      return res.status(404).json({ success: false, message: `Game ${requestedId} was not found` });
+    }
+
+    const localTeamSummary = (
+      team: { id: number; name: string; city: string | null; abbreviation: string | null },
+      score: number | null,
+      opponentScore: number | null
+    ): TeamSummary => ({
+      id: String(team.id),
+      abbreviation: team.abbreviation?.trim() || team.name.slice(0, 3).toUpperCase(),
+      displayName: team.name,
+      logoUrl: null,
+      score,
+      winner: score !== null && opponentScore !== null && score > opponentScore,
+      record: null,
+      linescores: [],
+    });
+
+    const localResponse = () => {
+      const seasonYear = Number(game.seasonYear);
+      const awayTeam = localTeamSummary(game.awayTeam, game.awayScore, game.homeScore);
+      const homeTeam = localTeamSummary(game.homeTeam, game.homeScore, game.awayScore);
+      return res.json({
+        success: true,
+        data: {
+          gameId: game.id,
+          espnEventId: game.espnEventId ?? '',
+          seasonYear,
+          title: game.playoffRound
+            ? resolvePlayoffTitle(game.playoffRound, game.playoffConference, seasonYear)
+            : `${awayTeam.displayName} at ${homeTeam.displayName}`,
+          playoffRound: game.playoffRound ?? null,
+          playoffConference: game.playoffConference ?? null,
+          playoffGameName: null,
+          date: game.gameDate?.toISOString() ?? null,
+          venue: game.gameLocation ?? null,
+          location: [game.gameCity, game.gameStateProvince].filter(Boolean).join(', ') || null,
+          status: String(game.gameStatus),
+          awayTeam,
+          homeTeam,
+          teamStats: [],
+          leaders: [],
+          scoringPlays: [],
+          recentPlays: [],
+        },
+      });
+    };
+
+    if (!game.espnEventId) {
+      return localResponse();
+    }
+
+    const espnEventId = game.espnEventId;
 
     const response = await fetch(
       `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(espnEventId)}`,
       { headers: { Accept: 'application/json' } }
     );
     if (!response.ok) {
-      return res.status(502).json({ success: false, message: `ESPN summary request failed (${response.status})` });
+      console.warn(`[game-details] ESPN summary unavailable for event ${espnEventId} (${response.status}); using local game data`);
+      return localResponse();
     }
 
     const payload: unknown = await response.json();

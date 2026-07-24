@@ -4,6 +4,7 @@ import { Team } from '@/domain/team/entities/Team';
 
 export interface PostSeasonResultProps {
   id?: number;
+  gameId?: number;
   playoffYear?: number;
   lastRoundReached?: string;
   winLose?: string;
@@ -27,6 +28,7 @@ export class PostSeasonResult {
   // ✅ FIXED: fromPersistence now expects the CORRECT Team structure from your database
   public static fromPersistence(data: {
     id: number;
+    gameId?: number | null;
     playoffYear: number | null;
     lastRoundReached: string | null;
     winLose: string | null;
@@ -64,6 +66,7 @@ export class PostSeasonResult {
 
     return new PostSeasonResult({
       id: data.id,
+      gameId: data.gameId ?? undefined,
       playoffYear: data.playoffYear || undefined,
       lastRoundReached: data.lastRoundReached || undefined,
       winLose: data.winLose || undefined,
@@ -101,6 +104,10 @@ export class PostSeasonResult {
   // Getters
   public get id(): number | undefined {
     return this.props.id;
+  }
+
+  public get gameId(): number | undefined {
+    return this.props.gameId;
   }
 
   public get playoffYear(): number | undefined {

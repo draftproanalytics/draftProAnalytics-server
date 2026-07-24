@@ -42,9 +42,13 @@ export const GameFiltersDtoSchema = z.object({
 });
 
 export const PaginationDtoSchema = z.object({
-  page: z.coerce.number().optional().default(1),      // ← Add .coerce
-  limit: z.coerce.number().optional().default(10),    // ← Add .coerce  
-  include: z.string().optional(),    
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(10),
+  include: z.string().optional(),
+  sortField: z.enum(['gameWeek', 'gameDate']).optional(),
+  sortOrder: z.coerce.number().refine((value) => value === 1 || value === -1, {
+    message: 'sortOrder must be 1 or -1',
+  }).optional(),
 });
 
 export const UpdateScoreDtoSchema = z.object({
