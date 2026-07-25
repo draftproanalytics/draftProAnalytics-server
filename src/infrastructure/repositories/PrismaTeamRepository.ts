@@ -42,9 +42,34 @@ export class PrismaTeamRepository implements ITeamRepository {
     const skip = (page - 1) * limit;
 
     const where = this.buildWhereClause(filters);
+    const allowedSortFields = [
+      'name',
+      'city',
+      'state',
+      'conference',
+      'division',
+      'stadium',
+    ] as const;
+    type TeamSortField = typeof allowedSortFields[number];
+
+    const requestedSortField = pagination?.sortField;
+    const sortField: TeamSortField = allowedSortFields.includes(
+      requestedSortField as TeamSortField
+    )
+      ? requestedSortField as TeamSortField
+      : 'name';
+    const sortDirection = pagination?.sortOrder === -1 ? 'desc' : 'asc';
 
     const [teams, total] = await Promise.all([
-      prisma.team.findMany({ where, skip, take: limit, orderBy: { name: 'asc' } }),
+      prisma.team.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [
+          { [sortField]: sortDirection },
+          ...(sortField === 'name' ? [] : [{ name: 'asc' as const }]),
+        ],
+      }),
       prisma.team.count({ where }),
     ]);
 

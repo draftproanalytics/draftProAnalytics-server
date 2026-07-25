@@ -1,7 +1,15 @@
 export interface PaginationParams {
   page?: number;
   limit?: number;
-  sortField?: 'gameWeek' | 'gameDate';
+  sortField?:
+    | 'gameWeek'
+    | 'gameDate'
+    | 'name'
+    | 'city'
+    | 'state'
+    | 'conference'
+    | 'division'
+    | 'stadium';
   sortOrder?: 1 | -1;
 }
 

@@ -52,6 +52,14 @@ export const TeamFiltersDtoSchema = z.object({
 export const PaginationDtoSchema = z.object({
   page: z.coerce.number().min(1).optional().default(1),      // ← CHANGED: was z.number().min(1).optional().default(1)
   limit: z.coerce.number().min(1).max(100).optional().default(10), // ← CHANGED: was z.number().min(1).max(100).optional().default(10)
+  sortField: z.enum(['name', 'city', 'state', 'conference', 'division', 'stadium'])
+    .optional()
+    .default('name'),
+  sortOrder: z.coerce.number()
+    .refine((value) => value === 1 || value === -1, 'sortOrder must be 1 or -1')
+    .transform((value): 1 | -1 => value as 1 | -1)
+    .optional()
+    .default(1),
 });
 
 export type CreateTeamDto = z.infer<typeof CreateTeamDtoSchema>;

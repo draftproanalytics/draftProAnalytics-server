@@ -60,6 +60,8 @@ export class TeamController {
       const pagination: PaginationDto = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
         limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        sortField: (req.query.sortField as PaginationDto['sortField']) ?? 'name',
+        sortOrder: req.query.sortOrder === '-1' ? -1 : 1,
       };
 
       const teams = await this.teamService.getAllTeams(filters, pagination);
