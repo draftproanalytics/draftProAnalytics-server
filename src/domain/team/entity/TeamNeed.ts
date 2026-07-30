@@ -1,37 +1,37 @@
-// src/domain/team/entity/TeamNeed.ts
- 
+import type { TeamNeed as PrismaTeamNeed } from '@prisma/client'
+
 export class TeamNeed {
-  constructor(
+  public constructor(
     public readonly id: number | undefined,
     public readonly teamId: number,
     public readonly position: string,
     public readonly priority: number,
-    public readonly draftYear?: number,
+    public readonly draftYear: number,
     public readonly createdAt?: Date,
     public readonly updatedAt?: Date
   ) {}
 
-  static fromDatabase(data: any): TeamNeed {
+  public static fromDatabase(data: PrismaTeamNeed): TeamNeed {
     return new TeamNeed(
       data.id,
       data.teamId,
       data.position,
       data.priority,
       data.draftYear,
-      data.createdAt,
-      data.updatedAt
+      data.createdAt ?? undefined,
+      data.updatedAt ?? undefined
     )
   }
 
-  isHighPriority(): boolean {
+  public isHighPriority(): boolean {
     return this.priority <= 2
   }
 
-  isMediumPriority(): boolean {
+  public isMediumPriority(): boolean {
     return this.priority >= 3 && this.priority <= 5
   }
 
-  isLowPriority(): boolean {
+  public isLowPriority(): boolean {
     return this.priority > 5
   }
 }

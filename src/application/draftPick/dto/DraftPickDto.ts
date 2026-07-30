@@ -19,7 +19,7 @@ export interface UpdateDraftPickDto {
   pickInRound: number;
   draftEventId: number;  
   pickNumber?: number;
-  draftYear?: number;
+  draftYear: number;
   currentTeamId?: number;
   prospectId?: number | null;
   playerId?: number | null;
@@ -57,7 +57,7 @@ export interface DraftPickWithRelationsDto {
 }
 
 export interface DraftPickQueryFilters {
-  draftYear?: number;
+  draftYear: number;
   currentTeamId?: number;
   used?: boolean;
   round?: number;

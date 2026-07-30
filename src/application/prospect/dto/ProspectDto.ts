@@ -115,7 +115,7 @@ export interface ProspectResponseDto {
   twentyYardShuttle?: number;
   benchPress?: number;
   drafted: boolean;
-  draftYear?: number;
+  draftYear?: number | null;
   teamId?: number;
   draftPickId?: number;
   hasCompleteCombineScores: boolean;

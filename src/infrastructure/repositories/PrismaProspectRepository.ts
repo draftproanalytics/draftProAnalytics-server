@@ -117,7 +117,7 @@ export class PrismaProspectRepository implements IProspectRepository {
     return this.findAll({ drafted: false }, pagination);
   }
 
-  async findDrafted(draftYear?: number, pagination?: PaginationParams): Promise<PaginatedResponse<Prospect>> {
+  async findDrafted(draftYear: number, pagination?: PaginationParams): Promise<PaginatedResponse<Prospect>> {
     const filters: ProspectFilters = { drafted: true };
     if (draftYear) {
       filters.draftYear = draftYear;

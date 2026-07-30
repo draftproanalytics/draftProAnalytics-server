@@ -142,3 +142,27 @@ export const parseSyncPostSeasonResultsPayload = (body: unknown): import('../../
     requestedByPersonId: typeof request.requestedByPersonId === 'number' ? request.requestedByPersonId : undefined,
   };
 };
+
+
+export const parseGenerateTeamNeedsPayload = (body: unknown): import('../../domain/dtos/GenerateTeamNeeds.dto').GenerateTeamNeedsPayloadDto => {
+  const request = asRecord(body);
+  const draftYear = parsePositiveInteger(request.draftYear, 'draftYear');
+  if (draftYear < 1936 || draftYear > 2155) throw new Error('draftYear is outside the supported range.');
+  if (typeof request.asOfDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(request.asOfDate) || Number.isNaN(Date.parse(`${request.asOfDate}T00:00:00Z`))) {
+    throw new Error('asOfDate must be a valid YYYY-MM-DD date.');
+  }
+  let teamId: number | undefined;
+  if (request.teamId !== undefined && request.teamId !== null) teamId = parsePositiveInteger(request.teamId, 'teamId');
+  const algorithmVersion = typeof request.algorithmVersion === 'string' && request.algorithmVersion.trim() !== ''
+    ? request.algorithmVersion.trim()
+    : 'team-needs-v4';
+  if (algorithmVersion.length > 32) throw new Error('algorithmVersion must not exceed 32 characters.');
+  return {
+    draftYear,
+    asOfDate: request.asOfDate,
+    teamId,
+    replaceRecommendations: request.replaceRecommendations !== false,
+    algorithmVersion,
+    requestedByPersonId: typeof request.requestedByPersonId === 'number' && Number.isInteger(request.requestedByPersonId) ? request.requestedByPersonId : undefined,
+  };
+};

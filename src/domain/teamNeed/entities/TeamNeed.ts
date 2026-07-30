@@ -6,7 +6,7 @@ export interface TeamNeedProps {
   teamId?: number;
   position?: string;
   priority?: number;
-  draftYear?: number;
+  draftYear: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -26,7 +26,7 @@ export class TeamNeed {
     teamId: number | null;
     position: string | null;
     priority: number | null;
-    draftYear: number | null;
+    draftYear: number;
     createdAt: Date | null;
     updatedAt: Date | null;
   }): TeamNeed {
@@ -35,7 +35,7 @@ export class TeamNeed {
       teamId: data.teamId || undefined,
       position: data.position || undefined,
       priority: data.priority || undefined,
-      draftYear: data.draftYear || undefined,
+      draftYear: data.draftYear,
       createdAt: data.createdAt || undefined,
       updatedAt: data.updatedAt || undefined,
     });
@@ -58,7 +58,7 @@ export class TeamNeed {
     }
 
     // Validate draft year range
-    if (this.props.draftYear !== undefined && (this.props.draftYear < 2000 || this.props.draftYear > 2030)) {
+    if (!Number.isInteger(this.props.draftYear) || this.props.draftYear < 2000 || this.props.draftYear > 2030) {
       throw new ValidationError('Draft year must be between 2000 and 2030');
     }
   }
@@ -80,7 +80,7 @@ export class TeamNeed {
     return this.props.priority;
   }
 
-  public get draftYear(): number | undefined {
+  public get draftYear(): number {
     return this.props.draftYear;
   }
 
@@ -129,7 +129,7 @@ export class TeamNeed {
     teamId?: number;
     position?: string;
     priority?: number;
-    draftYear?: number;
+    draftYear: number;
     createdAt?: Date;
     updatedAt?: Date;
   } {

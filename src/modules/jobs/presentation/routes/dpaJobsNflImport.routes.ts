@@ -9,6 +9,7 @@ import { EnqueueEnrichPlayerTeamPositionsJobUseCase } from '../../application/us
 import { EnqueueLoadEspnTeamRostersJobUseCase } from '../../application/use-cases/EnqueueLoadEspnTeamRostersJobUseCase';
 import { EnqueueLoadNflSeasonScheduleJobUseCase } from '../../application/use-cases/EnqueueLoadNflSeasonScheduleJobUseCase';
 import { EnqueueSyncPostSeasonResultsJobUseCase } from '../../application/use-cases/EnqueueSyncPostSeasonResultsJobUseCase';
+import { EnqueueGenerateTeamNeedsJobUseCase } from '../../application/use-cases/EnqueueGenerateTeamNeedsJobUseCase';
 import { ListDpaJobsUseCase } from '../../application/use-cases/ListDpaJobsUseCase';
 import { ReadDpaJobUseCase } from '../../application/use-cases/ReadDpaJobUseCase';
 import { CancelDpaJobUseCase } from '../../application/use-cases/CancelDpaJobUseCase';
@@ -22,6 +23,7 @@ import { EnrichPlayerTeamPositionsJobHandler } from '../../application/services/
 import { LoadEspnTeamRostersJobHandler } from '../../application/services/LoadEspnTeamRostersJobHandler';
 import { LoadNflSeasonScheduleJobHandler } from '../../application/services/LoadNflSeasonScheduleJobHandler';
 import { SyncPostSeasonResultsJobHandler } from '../../application/services/SyncPostSeasonResultsJobHandler';
+import { GenerateTeamNeedsJobHandler } from '../../application/services/GenerateTeamNeedsJobHandler';
 import { EspnDraftProvider } from '../../infrastructure/external/EspnDraftProvider';
 import { EspnRosterProvider } from '../../infrastructure/external/EspnRosterProvider';
 import { EspnNflScheduleProvider } from '../../infrastructure/external/EspnNflScheduleProvider';
@@ -31,6 +33,7 @@ import { PrismaEspnDraftImportRepository } from '../../infrastructure/persistenc
 import { PrismaEspnRosterImportRepository } from '../../infrastructure/persistence/PrismaEspnRosterImportRepository';
 import { PrismaJobQueueRepository } from '../../infrastructure/persistence/PrismaJobQueueRepository';
 import { PrismaPostSeasonResultSyncRepository } from '../../infrastructure/persistence/PrismaPostSeasonResultSyncRepository';
+import { PrismaTeamNeedsGenerationRepository } from '../../infrastructure/persistence/PrismaTeamNeedsGenerationRepository';
 import { DpaJobsNflImportController } from '../controllers/DpaJobsNflImportController';
 
 // If your app uses RBAC here, add your existing middleware, for example:
@@ -48,6 +51,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   const teamIdentityResolver = new PrismaDpaTeamIdentityResolver(prisma);
   const gameScheduleRepository = new PrismaGameScheduleRepository(prisma, teamIdentityResolver);
   const postSeasonResultSyncRepository = new PrismaPostSeasonResultSyncRepository(prisma);
+  const teamNeedsGenerationRepository = new PrismaTeamNeedsGenerationRepository(prisma);
 
   const loadNflSeasonScheduleJobHandler = new LoadNflSeasonScheduleJobHandler(
     jobQueueRepository,
@@ -67,6 +71,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   const enrichPlayerTeamPositionsJobHandler = new EnrichPlayerTeamPositionsJobHandler(jobQueueRepository, espnDraftProvider, espnDraftImportRepository);
   const loadEspnTeamRostersJobHandler = new LoadEspnTeamRostersJobHandler(jobQueueRepository, espnRosterProvider, espnRosterImportRepository);
   const syncPostSeasonResultsJobHandler = new SyncPostSeasonResultsJobHandler(jobQueueRepository, postSeasonResultSyncRepository);
+  const generateTeamNeedsJobHandler = new GenerateTeamNeedsJobHandler(jobQueueRepository, teamNeedsGenerationRepository);
 
   const jobQueueProcessor = new DpaJobQueueProcessor(
     jobQueueRepository,
@@ -78,6 +83,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
     syncEspnDraftPicksToDpaJobHandler,
     loadEspnTeamRostersJobHandler,
     syncPostSeasonResultsJobHandler,
+    generateTeamNeedsJobHandler,
   );
 
   const controller = new DpaJobsNflImportController(
@@ -89,6 +95,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
     new EnqueueSyncEspnDraftPicksToDpaJobUseCase(jobQueueRepository),
     new EnqueueLoadEspnTeamRostersJobUseCase(jobQueueRepository),
     new EnqueueSyncPostSeasonResultsJobUseCase(jobQueueRepository),
+    new EnqueueGenerateTeamNeedsJobUseCase(jobQueueRepository),
     new ProcessDpaJobQueueUseCase(jobQueueProcessor),
     new ListDpaJobsUseCase(jobQueueRepository),
     new ReadDpaJobUseCase(jobQueueRepository),
@@ -108,6 +115,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   router.post('/imports/espn-draft-picks/sync', controller.enqueueSyncEspnDraftPicksToDpa);
   router.post('/imports/espn-team-rosters', controller.enqueueLoadEspnTeamRosters);
   router.post('/imports/postseason-results/sync', controller.enqueueSyncPostSeasonResults);
+  router.post('/team-needs/generate', controller.enqueueGenerateTeamNeeds);
   router.post('/queue/process', controller.processQueue);
   router.post('/:jobId/cancel', controller.cancelJob);
 

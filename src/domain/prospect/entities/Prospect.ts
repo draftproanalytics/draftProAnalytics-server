@@ -21,7 +21,7 @@ export interface ProspectProps {
   twentyYardShuttle?: number;
   benchPress?: number;
   drafted: boolean;
-  draftYear?: number;
+  draftYear?: number | null;
   teamId?: number;
   draftPickId?: number;
   createdAt?: Date;
@@ -83,7 +83,7 @@ export class Prospect {
       twentyYardShuttle: data.twentyYardShuttle || undefined,
       benchPress: data.benchPress || undefined,
       drafted: data.drafted,
-      draftYear: data.draftYear || undefined,
+      draftYear: data.draftYear ?? null,
       teamId: data.teamId || undefined,
       draftPickId: data.draftPickId || undefined,
       createdAt: data.createdAt,
@@ -221,8 +221,8 @@ export class Prospect {
     return this.props.drafted;
   }
 
-  public get draftYear(): number | undefined {
-    return this.props.draftYear;
+  public get draftYear(): number | null {
+    return this.props.draftYear ?? null;
   }
 
   public get teamId(): number | undefined {
@@ -437,7 +437,7 @@ export class Prospect {
     twentyYardShuttle?: number;
     benchPress?: number;
     drafted: boolean;
-    draftYear?: number;
+    draftYear: number | null;
     teamId?: number;
     draftPickId?: number;
   } {
@@ -461,7 +461,7 @@ export class Prospect {
       twentyYardShuttle: this.props.twentyYardShuttle,
       benchPress: this.props.benchPress,
       drafted: this.props.drafted,
-      draftYear: this.props.draftYear,
+      draftYear: this.props.draftYear ?? null,
       teamId: this.props.teamId,
       draftPickId: this.props.draftPickId,
     };
