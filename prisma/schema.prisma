@@ -59,6 +59,7 @@ model DraftPick {
   Prospect_DraftPick_prospectIdToProspect  Prospect?                 @relation("DraftPick_prospectIdToProspect", fields: [prospectId], references: [id], map: "fk_DraftPick_Prospect")
   DraftEvent                               DraftEvent                @relation(fields: [draftEventId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_draft_pick_event")
   DraftPickAuditLog                        DraftPickAuditLog[]
+  DraftPickEvaluation                      DraftPickEvaluation[]
   PostDraftPickEvaluation                  PostDraftPickEvaluation[]
   Prospect_Prospect_draftPickIdToDraftPick Prospect[]                @relation("Prospect_draftPickIdToDraftPick")
 
@@ -77,26 +78,29 @@ model DraftPick {
 }
 
 model Person {
-  pid                                              Int                      @id @default(autoincrement())
-  userName                                         String                   @db.VarChar(25)
-  emailAddress                                     String                   @db.VarChar(75)
-  passwordHash                                     String?                  @db.VarChar(255)
-  firstName                                        String                   @db.VarChar(25)
-  lastName                                         String                   @db.VarChar(35)
-  emailVerified                                    Boolean                  @default(false)
-  verifiedAt                                       DateTime?                @db.DateTime(0)
-  isActive                                         Boolean?                 @default(true)
-  createdAt                                        DateTime?                @default(now()) @db.DateTime(0)
-  updatedAt                                        DateTime?                @default(now()) @db.DateTime(0)
-  lastLoginAt                                      DateTime?                @db.DateTime(0)
+  pid                                              Int                            @id @default(autoincrement())
+  userName                                         String                         @db.VarChar(25)
+  emailAddress                                     String                         @db.VarChar(75)
+  passwordHash                                     String?                        @db.VarChar(255)
+  firstName                                        String                         @db.VarChar(25)
+  lastName                                         String                         @db.VarChar(35)
+  emailVerified                                    Boolean                        @default(false)
+  verifiedAt                                       DateTime?                      @db.DateTime(0)
+  isActive                                         Boolean?                       @default(true)
+  createdAt                                        DateTime?                      @default(now()) @db.DateTime(0)
+  updatedAt                                        DateTime?                      @default(now()) @db.DateTime(0)
+  lastLoginAt                                      DateTime?                      @db.DateTime(0)
   activeRid                                        Int?
+  DraftPickEvaluation                              DraftPickEvaluation[]
+  DraftTeamScorecardEvaluation                     DraftTeamScorecardEvaluation[]
   EmailVerificationToken                           EmailVerificationToken[]
   PasswordResetToken                               PasswordResetToken[]
-  Roles                                            Roles?                   @relation(fields: [activeRid], references: [rid], onDelete: NoAction, onUpdate: NoAction, map: "fk_person_active_role")
+  Roles                                            Roles?                         @relation(fields: [activeRid], references: [rid], onDelete: NoAction, onUpdate: NoAction, map: "fk_person_active_role")
   PersonIdentity                                   PersonIdentity[]
-  PersonRole_PersonRole_assignedByPersonIdToPerson PersonRole[]             @relation("PersonRole_assignedByPersonIdToPerson")
-  PersonRole_PersonRole_personIdToPerson           PersonRole[]             @relation("PersonRole_personIdToPerson")
+  PersonRole_PersonRole_assignedByPersonIdToPerson PersonRole[]                   @relation("PersonRole_assignedByPersonIdToPerson")
+  PersonRole_PersonRole_personIdToPerson           PersonRole[]                   @relation("PersonRole_personIdToPerson")
   refreshTokens                                    RefreshToken[]
+  TeamNeed                                         TeamNeed[]
 
   @@index([activeRid], map: "fk_person_active_role")
 }
@@ -289,51 +293,68 @@ model Schedule {
 }
 
 model Team {
-  id                                                           Int                    @id @default(autoincrement())
-  name                                                         String                 @unique(map: "uq_team_name") @db.VarChar(45)
-  city                                                         String?                @db.VarChar(45)
-  state                                                        String?                @db.VarChar(45)
-  conference                                                   String?                @db.VarChar(35)
-  division                                                     String?                @db.VarChar(20)
-  stadium                                                      String?                @db.VarChar(45)
+  id                                                           Int                      @id @default(autoincrement())
+  name                                                         String                   @unique(map: "uq_team_name") @db.VarChar(45)
+  city                                                         String?                  @db.VarChar(45)
+  state                                                        String?                  @db.VarChar(45)
+  conference                                                   String?                  @db.VarChar(35)
+  division                                                     String?                  @db.VarChar(20)
+  stadium                                                      String?                  @db.VarChar(45)
   scheduleId                                                   Int?
-  abbreviation                                                 String?                @unique(map: "abbreviation") @db.VarChar(255)
-  espnTeamId                                                   Int?                   @unique(map: "espnTeamId")
+  abbreviation                                                 String?                  @unique(map: "abbreviation") @db.VarChar(255)
+  espnTeamId                                                   Int?                     @unique(map: "espnTeamId")
   DraftOrderEntry                                              DraftOrderEntry[]
   DraftPick                                                    DraftPick[]
-  DraftSimulationPick_DraftSimulationPick_currentTeamIdToTeam  DraftSimulationPick[]  @relation("DraftSimulationPick_currentTeamIdToTeam")
-  DraftSimulationPick_DraftSimulationPick_originalTeamIdToTeam DraftSimulationPick[]  @relation("DraftSimulationPick_originalTeamIdToTeam")
+  DraftSimulationPick_DraftSimulationPick_currentTeamIdToTeam  DraftSimulationPick[]    @relation("DraftSimulationPick_currentTeamIdToTeam")
+  DraftSimulationPick_DraftSimulationPick_originalTeamIdToTeam DraftSimulationPick[]    @relation("DraftSimulationPick_originalTeamIdToTeam")
   DraftSimulationTeam                                          DraftSimulationTeam[]
   DraftTeamScorecard                                           DraftTeamScorecard[]
-  Game_Game_homeTeamIdToTeam                                   Game[]                 @relation("Game_homeTeamIdToTeam")
-  Game_Game_awayTeamIdToTeam                                   Game[]                 @relation("Game_awayTeamIdToTeam")
+  Game_Game_homeTeamIdToTeam                                   Game[]                   @relation("Game_homeTeamIdToTeam")
+  Game_Game_awayTeamIdToTeam                                   Game[]                   @relation("Game_awayTeamIdToTeam")
   PlayerTeam                                                   PlayerTeam[]
   PostDraftReport                                              PostDraftReport[]
   PostSeasonResult                                             PostSeasonResult[]
   Prospect                                                     Prospect[]
-  Schedule_Schedule_teamIdToTeam                               Schedule[]             @relation("Schedule_teamIdToTeam")
-  Schedule_Schedule_oppTeamIdToTeam                            Schedule[]             @relation("Schedule_oppTeamIdToTeam")
+  Schedule_Schedule_teamIdToTeam                               Schedule[]               @relation("Schedule_teamIdToTeam")
+  Schedule_Schedule_oppTeamIdToTeam                            Schedule[]               @relation("Schedule_oppTeamIdToTeam")
   TeamNeed                                                     TeamNeed[]
+  TeamPositionAssessment                                       TeamPositionAssessment[]
   draftPredictions                                             draftPredictions[]
   historicalDraftPicks                                         historicalDraftPicks[]
-  liveDraftPicks_liveDraftPicks_originalTeamIdToTeam           liveDraftPicks[]       @relation("liveDraftPicks_originalTeamIdToTeam")
-  liveDraftPicks_liveDraftPicks_teamIdToTeam                   liveDraftPicks[]       @relation("liveDraftPicks_teamIdToTeam")
+  liveDraftPicks_liveDraftPicks_originalTeamIdToTeam           liveDraftPicks[]         @relation("liveDraftPicks_originalTeamIdToTeam")
+  liveDraftPicks_liveDraftPicks_teamIdToTeam                   liveDraftPicks[]         @relation("liveDraftPicks_teamIdToTeam")
   rosterPlayers                                                rosterPlayers[]
   teamDraftPatterns                                            teamDraftPatterns?
 }
 
 model TeamNeed {
-  id        Int       @id @default(autoincrement())
-  teamId    Int
-  position  String    @db.VarChar(10)
-  priority  Int       @default(1)
-  createdAt DateTime? @default(now()) @db.Timestamp(0)
-  updatedAt DateTime? @default(now()) @db.Timestamp(0)
-  draftYear Int?      @db.Year
-  Team      Team      @relation(fields: [teamId], references: [id], onDelete: Cascade, map: "fk_TeamNeed_Team")
+  id                 Int       @id @default(autoincrement())
+  teamId             Int
+  position           String    @db.VarChar(10)
+  priority           Int       @default(1)
+  needScore          Decimal?  @db.Decimal(5, 2)
+  source             String    @default("MANUAL") @db.VarChar(20)
+  status             String    @default("APPROVED") @db.VarChar(20)
+  asOfDate           DateTime? @db.Date
+  algorithmVersion   String?   @db.VarChar(32)
+  rationaleJson      Json?
+  inputSnapshotJson  Json?
+  generatedByJobId   Int?
+  reviewedByPersonId Int?
+  reviewedAt         DateTime? @db.DateTime(0)
+  createdAt          DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt          DateTime? @default(now()) @db.Timestamp(0)
+  draftYear          Int       @db.Year
+  Job                Job?      @relation(fields: [generatedByJobId], references: [id], map: "fk_TeamNeed_GeneratedJob")
+  Person             Person?   @relation(fields: [reviewedByPersonId], references: [pid], map: "fk_TeamNeed_ReviewedByPerson")
+  Team               Team      @relation(fields: [teamId], references: [id], onDelete: Cascade, map: "fk_TeamNeed_Team")
 
-  @@unique([teamId, position], map: "unique_team_position")
+  @@unique([teamId, draftYear, position], map: "uq_TeamNeed_team_year_position")
   @@index([teamId], map: "fk_TeamNeed_Team_idx")
+  @@index([generatedByJobId], map: "idx_TeamNeed_generatedByJobId")
+  @@index([reviewedByPersonId], map: "idx_TeamNeed_reviewedByPersonId")
+  @@index([teamId, draftYear, status], map: "idx_TeamNeed_team_year_status")
+  @@index([draftYear, status], map: "idx_TeamNeed_year_status")
 }
 
 model Roles {
@@ -533,6 +554,7 @@ model Job {
   DraftOrderSnapshot  DraftOrderSnapshot[]
   logs                JobLog[]
   JobStep             JobStep[]
+  TeamNeed            TeamNeed[]
 
   @@index([status])
   @@index([createdAt], map: "idx_Job_createdAt")
@@ -1291,21 +1313,22 @@ model DraftPickAuditLog {
 }
 
 model DraftTeamScorecard {
-  id             Int        @id @default(autoincrement())
-  draftEventId   Int
-  teamId         Int
-  preDraftNeeds  Json?
-  strategyNotes  String?    @db.Text
-  totalPicks     Int        @default(0)
-  pickedCount    Int        @default(0)
-  overallGrade   Decimal?   @db.Decimal(5, 2)
-  valueGrade     Decimal?   @db.Decimal(5, 2)
-  needsFitGrade  Decimal?   @db.Decimal(5, 2)
-  analystSummary String?    @db.Text
-  createdAt      DateTime?  @default(now()) @db.Timestamp(0)
-  updatedAt      DateTime?  @default(now()) @db.Timestamp(0)
-  DraftEvent     DraftEvent @relation(fields: [draftEventId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_DraftTeamScorecard_event")
-  Team           Team       @relation(fields: [teamId], references: [id], onUpdate: NoAction, map: "fk_DraftTeamScorecard_team")
+  id                           Int                            @id @default(autoincrement())
+  draftEventId                 Int
+  teamId                       Int
+  preDraftNeeds                Json?
+  strategyNotes                String?                        @db.Text
+  totalPicks                   Int                            @default(0)
+  pickedCount                  Int                            @default(0)
+  overallGrade                 Decimal?                       @db.Decimal(5, 2)
+  valueGrade                   Decimal?                       @db.Decimal(5, 2)
+  needsFitGrade                Decimal?                       @db.Decimal(5, 2)
+  analystSummary               String?                        @db.Text
+  createdAt                    DateTime?                      @default(now()) @db.Timestamp(0)
+  updatedAt                    DateTime?                      @default(now()) @db.Timestamp(0)
+  DraftEvent                   DraftEvent                     @relation(fields: [draftEventId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_DraftTeamScorecard_event")
+  Team                         Team                           @relation(fields: [teamId], references: [id], onUpdate: NoAction, map: "fk_DraftTeamScorecard_team")
+  DraftTeamScorecardEvaluation DraftTeamScorecardEvaluation[]
 
   @@unique([draftEventId, teamId], map: "uq_DraftTeamScorecard_event_team")
   @@index([draftEventId], map: "idx_DraftTeamScorecard_event")
@@ -1403,27 +1426,26 @@ model PostDraftPickEvaluation {
 }
 
 model PostDraftReport {
-  id                BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  id                BigInt                     @id @default(autoincrement()) @db.UnsignedBigInt
   teamId            Int
-  draftYear         Int      @db.Year
+  draftYear         Int                        @db.Year
   reportVersion     Int
-  status            String   @default("FINALIZED") @db.VarChar(16)
-  modelId           BigInt   @db.UnsignedBigInt
-  modelKey          String   @db.VarChar(64)
-  modelVersion      String   @db.VarChar(32)
-  overallScore      Decimal  @db.Decimal(6, 2)
-  overallGrade      String   @db.VarChar(5)
-  dataConfidence    Decimal  @db.Decimal(6, 2)
-  inputHash         String   @db.Char(64)
+  status            String                     @default("FINALIZED") @db.VarChar(16)
+  modelId           BigInt                     @db.UnsignedBigInt
+  modelKey          String                     @db.VarChar(64)
+  modelVersion      String                     @db.VarChar(32)
+  overallScore      Decimal                    @db.Decimal(6, 2)
+  overallGrade      String                     @db.VarChar(5)
+  dataConfidence    Decimal                    @db.Decimal(6, 2)
+  inputHash         String                     @db.Char(64)
   inputSnapshotJson Json
   reportJson        Json
-  finalizedAt       DateTime @default(now()) @db.DateTime(0)
-  createdAt         DateTime @default(now()) @db.DateTime(0)
-
-  pickEvaluations  PostDraftPickEvaluation[]
-  roundEvaluations PostDraftRoundEvaluation[]
-  evaluationModel  PostDraftEvaluationModel   @relation(fields: [modelId], references: [id], map: "fk_PostDraftReport_Model")
-  team             Team                       @relation(fields: [teamId], references: [id], map: "fk_PostDraftReport_Team")
+  finalizedAt       DateTime                   @default(now()) @db.DateTime(0)
+  createdAt         DateTime                   @default(now()) @db.DateTime(0)
+  pickEvaluations   PostDraftPickEvaluation[]
+  evaluationModel   PostDraftEvaluationModel   @relation(fields: [modelId], references: [id], map: "fk_PostDraftReport_Model")
+  team              Team                       @relation(fields: [teamId], references: [id], map: "fk_PostDraftReport_Team")
+  roundEvaluations  PostDraftRoundEvaluation[]
 
   @@unique([teamId, draftYear, reportVersion], map: "uq_PostDraftReport_team_year_version")
   @@index([modelId], map: "fk_PostDraftReport_Model")
@@ -1532,6 +1554,204 @@ model PostDraftWRMetricImportRow {
 
   @@unique([batchId, rowNumber], map: "uq_PostDraftWRMetricImportRow_batch_row")
   @@index([metricId], map: "idx_PostDraftWRMetricImportRow_metric")
+}
+
+model TeamNeed_backup_20260729 {
+  id        Int       @id @default(autoincrement())
+  teamId    Int
+  position  String    @db.VarChar(10)
+  priority  Int       @default(1)
+  createdAt DateTime? @default(now()) @db.Timestamp(0)
+  updatedAt DateTime? @default(now()) @db.Timestamp(0)
+  draftYear Int?      @db.Year
+
+  @@unique([teamId, position], map: "unique_team_position")
+  @@index([teamId], map: "fk_TeamNeed_Team_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model DraftPickEvaluation {
+  id                        BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  draftPickId               Int
+  evaluationType            String                @db.VarChar(32)
+  evaluationVersion         Int                   @default(1)
+  evaluationHorizonSeasons  Int?
+  asOfSeasonYear            Int?                  @db.Year
+  asOfDate                  DateTime              @db.DateTime(0)
+  modelKey                  String                @db.VarChar(64)
+  modelVersion              String                @db.VarChar(32)
+  overallScore              Decimal?              @db.Decimal(6, 2)
+  overallGrade              String?               @db.VarChar(5)
+  prospectQualityScore      Decimal?              @db.Decimal(6, 2)
+  draftSlotValueScore       Decimal?              @db.Decimal(6, 2)
+  needsFitScore             Decimal?              @db.Decimal(6, 2)
+  positionalValueScore      Decimal?              @db.Decimal(6, 2)
+  careerOutcomeScore        Decimal?              @db.Decimal(6, 2)
+  confidenceScore           Decimal               @default(0.00) @db.Decimal(6, 2)
+  dataStatus                String                @default("INCOMPLETE") @db.VarChar(32)
+  inputSnapshotJson         Json
+  scoreBreakdownJson        Json
+  missingInputsJson         Json?
+  summary                   String?               @db.Text
+  analystNotes              String?               @db.Text
+  createdByPersonId         Int?
+  supersedesEvaluationId    BigInt?               @db.UnsignedBigInt
+  isCurrent                 Boolean               @default(true)
+  createdAt                 DateTime              @default(now()) @db.DateTime(0)
+  updatedAt                 DateTime              @default(now()) @db.DateTime(0)
+  DraftPick                 DraftPick             @relation(fields: [draftPickId], references: [id], onDelete: Cascade, map: "fk_DraftPickEvaluation_DraftPick")
+  Person                    Person?               @relation(fields: [createdByPersonId], references: [pid], map: "fk_DraftPickEvaluation_Person")
+  DraftPickEvaluation       DraftPickEvaluation?  @relation("DraftPickEvaluationToDraftPickEvaluation", fields: [supersedesEvaluationId], references: [id], map: "fk_DraftPickEvaluation_Supersedes")
+  other_DraftPickEvaluation DraftPickEvaluation[] @relation("DraftPickEvaluationToDraftPickEvaluation")
+
+  @@unique([draftPickId, evaluationType, evaluationVersion], map: "uq_DraftPickEvaluation_version")
+  @@index([asOfSeasonYear], map: "idx_DraftPickEvaluation_asOfSeason")
+  @@index([createdByPersonId], map: "idx_DraftPickEvaluation_createdBy")
+  @@index([modelKey, modelVersion], map: "idx_DraftPickEvaluation_model")
+  @@index([draftPickId], map: "idx_DraftPickEvaluation_pick")
+  @@index([draftPickId, evaluationType, isCurrent], map: "idx_DraftPickEvaluation_pick_type_current")
+  @@index([supersedesEvaluationId], map: "idx_DraftPickEvaluation_supersedes")
+}
+
+model DraftTeamScorecardEvaluation {
+  id                   BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  draftTeamScorecardId Int
+  evaluationType       String             @db.VarChar(32)
+  evaluationVersion    Int                @default(1)
+  asOfSeasonYear       Int?               @db.Year
+  asOfDate             DateTime           @db.DateTime(0)
+  modelKey             String             @db.VarChar(64)
+  modelVersion         String             @db.VarChar(32)
+  overallScore         Decimal?           @db.Decimal(6, 2)
+  overallGrade         String?            @db.VarChar(5)
+  valueScore           Decimal?           @db.Decimal(6, 2)
+  needsFitScore        Decimal?           @db.Decimal(6, 2)
+  careerOutcomeScore   Decimal?           @db.Decimal(6, 2)
+  confidenceScore      Decimal            @default(0.00) @db.Decimal(6, 2)
+  inputSnapshotJson    Json
+  scoreBreakdownJson   Json
+  summary              String?            @db.Text
+  createdByPersonId    Int?
+  isCurrent            Boolean            @default(true)
+  createdAt            DateTime           @default(now()) @db.DateTime(0)
+  updatedAt            DateTime           @default(now()) @db.DateTime(0)
+  Person               Person?            @relation(fields: [createdByPersonId], references: [pid], map: "fk_DTSE_Person")
+  DraftTeamScorecard   DraftTeamScorecard @relation(fields: [draftTeamScorecardId], references: [id], onDelete: Cascade, map: "fk_DTSE_Scorecard")
+
+  @@unique([draftTeamScorecardId, evaluationType, evaluationVersion], map: "uq_DraftTeamScorecardEvaluation_version")
+  @@index([createdByPersonId], map: "fk_DTSE_Person")
+  @@index([asOfSeasonYear], map: "idx_DTSE_asOfSeasonYear")
+  @@index([draftTeamScorecardId, evaluationType, isCurrent], map: "idx_DTSE_scorecard_type_current")
+}
+
+model PlayerSeasonEvaluation {
+  id                    BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  rosterPlayerId        String    @db.VarChar(36)
+  teamId                Int
+  seasonYear            Int       @db.Year
+  position              String    @db.VarChar(10)
+  sourceType            String    @db.VarChar(32)
+  sourceName            String    @db.VarChar(100)
+  sourceReference       String?   @db.VarChar(255)
+  overallGrade          Decimal?  @db.Decimal(6, 2)
+  positionRank          Int?
+  qualifyingPlayerCount Int?
+  passBlockGrade        Decimal?  @db.Decimal(6, 2)
+  runBlockGrade         Decimal?  @db.Decimal(6, 2)
+  receivingGrade        Decimal?  @db.Decimal(6, 2)
+  coverageGrade         Decimal?  @db.Decimal(6, 2)
+  passRushGrade         Decimal?  @db.Decimal(6, 2)
+  metricsJson           Json?
+  analystContextJson    Json?
+  verified              Boolean   @default(false)
+  verifiedByPersonId    Int?
+  verifiedAt            DateTime? @db.DateTime(0)
+  effectiveAsOfDate     DateTime  @db.Date
+  createdAt             DateTime  @default(now()) @db.DateTime(0)
+  updatedAt             DateTime  @default(now()) @db.DateTime(0)
+
+  @@unique([rosterPlayerId, seasonYear, sourceType, sourceName], map: "uq_PlayerSeasonEvaluation_source")
+  @@index([seasonYear, position, positionRank], map: "idx_PlayerSeasonEvaluation_rank")
+  @@index([teamId, seasonYear, position], map: "idx_PlayerSeasonEvaluation_team_position")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model TeamPositionAssessment {
+  id                    BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  teamId                Int
+  draftYear             Int       @db.Year
+  seasonYear            Int       @db.Year
+  position              String    @db.VarChar(10)
+  assessmentType        String    @default("MANUAL") @db.VarChar(24)
+  algorithmVersion      String?   @db.VarChar(32)
+  rosterCountScore      Decimal?  @db.Decimal(5, 2)
+  topStarterScore       Decimal?  @db.Decimal(5, 2)
+  secondStarterScore    Decimal?  @db.Decimal(5, 2)
+  depthQualityScore     Decimal?  @db.Decimal(5, 2)
+  productionScore       Decimal?  @db.Decimal(5, 2)
+  assignmentGradeScore  Decimal?  @db.Decimal(5, 2)
+  roleCompletenessScore Decimal?  @db.Decimal(5, 2)
+  contextRiskScore      Decimal?  @db.Decimal(5, 2)
+  dataConfidence        Decimal   @default(0.00) @db.Decimal(5, 2)
+  calculatedNeedScore   Decimal?  @db.Decimal(5, 2)
+  analystOverrideScore  Decimal?  @db.Decimal(5, 2)
+  finalNeedScore        Decimal?  @db.Decimal(5, 2)
+  priority              Int?
+  reason                String?   @db.VarChar(1000)
+  evidenceJson          Json?
+  inputSnapshotJson     Json?
+  status                String    @default("DRAFT") @db.VarChar(20)
+  createdByPersonId     Int?
+  reviewedByPersonId    Int?
+  reviewedAt            DateTime? @db.DateTime(0)
+  createdAt             DateTime  @default(now()) @db.DateTime(0)
+  updatedAt             DateTime  @default(now()) @db.DateTime(0)
+  Team                  Team      @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_TPA_Team")
+
+  @@unique([teamId, draftYear, position, assessmentType], map: "uq_TPA_team_year_position_type")
+  @@index([draftYear, status], map: "idx_TPA_draft_status")
+  @@index([teamId, draftYear], map: "idx_TPA_team_draft")
+}
+
+model TeamPositionContext {
+  id                         BigInt                      @id @default(autoincrement()) @db.UnsignedBigInt
+  teamId                     Int
+  draftYear                  Int                         @db.Year
+  position                   String                      @db.VarChar(10)
+  riskLevel                  String                      @db.VarChar(16)
+  contextScore               Decimal                     @default(0.00) @db.Decimal(5, 2)
+  contextType                String                      @db.VarChar(32)
+  summary                    String                      @db.VarChar(1000)
+  evidenceJson               Json?
+  source                     String                      @default("MANUAL") @db.VarChar(32)
+  status                     String                      @default("APPROVED") @db.VarChar(20)
+  createdAt                  DateTime                    @default(now()) @db.DateTime(0)
+  updatedAt                  DateTime                    @default(now()) @db.DateTime(0)
+  contextCatalogId           Int?
+  appliedWeight              Decimal?                    @db.Decimal(5, 2)
+  analystConfidence          Decimal?                    @db.Decimal(5, 2)
+  createdByPersonId          Int?
+  TeamPositionContextCatalog TeamPositionContextCatalog? @relation(fields: [contextCatalogId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_TPC_Catalog")
+
+  @@index([contextCatalogId], map: "fk_TPC_Catalog")
+  @@index([teamId, draftYear, position], map: "idx_TeamPositionContext_lookup")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model TeamPositionContextCatalog {
+  id                  Int                   @id @default(autoincrement())
+  contextCode         String                @unique(map: "uq_TeamPositionContextCatalog_code") @db.VarChar(64)
+  displayName         String                @db.VarChar(150)
+  description         String?               @db.VarChar(500)
+  positionScope       String?               @db.VarChar(255)
+  defaultWeight       Decimal               @db.Decimal(5, 2)
+  maximumWeight       Decimal               @default(100.00) @db.Decimal(5, 2)
+  direction           String                @default("INCREASE_NEED") @db.VarChar(16)
+  isActive            Boolean               @default(true)
+  sortOrder           Int                   @default(0)
+  createdAt           DateTime              @default(now()) @db.DateTime(0)
+  updatedAt           DateTime              @default(now()) @db.DateTime(0)
+  TeamPositionContext TeamPositionContext[]
 }
 
 enum Job_status {

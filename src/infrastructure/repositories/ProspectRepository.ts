@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client'
 export class ProspectRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async findAvailable(draftYear?: number): Promise<Prospect[]> {
+  async findAvailable(draftYear: number): Promise<Prospect[]> {
     const prospects = await this.prisma.prospect.findMany({
       where: {
         drafted: false,

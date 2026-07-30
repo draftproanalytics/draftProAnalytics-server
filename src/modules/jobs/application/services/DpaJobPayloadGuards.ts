@@ -122,3 +122,19 @@ export const readSyncPostSeasonResultsPayload = (payload: unknown): import('../.
     overwriteExisting: record.overwriteExisting === true,
   };
 };
+
+
+export const readGenerateTeamNeedsPayload = (payload: unknown): import('../../domain/dtos/GenerateTeamNeeds.dto').GenerateTeamNeedsPayloadDto => {
+  const record = asPayloadRecord(payload);
+  if (typeof record.draftYear !== 'number' || !Number.isInteger(record.draftYear)) throw new Error('Job payload has an invalid draftYear.');
+  if (typeof record.asOfDate !== 'string' || Number.isNaN(Date.parse(`${record.asOfDate}T00:00:00Z`))) throw new Error('Job payload has an invalid asOfDate.');
+  const teamId = record.teamId === undefined ? undefined : (typeof record.teamId === 'number' && Number.isInteger(record.teamId) && record.teamId > 0 ? record.teamId : null);
+  if (teamId === null) throw new Error('Job payload has an invalid teamId.');
+  return {
+    draftYear: record.draftYear,
+    asOfDate: record.asOfDate,
+    teamId,
+    replaceRecommendations: record.replaceRecommendations !== false,
+    algorithmVersion: typeof record.algorithmVersion === 'string' && record.algorithmVersion !== '' ? record.algorithmVersion : 'team-needs-v4',
+  };
+};

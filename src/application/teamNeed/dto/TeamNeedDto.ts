@@ -5,7 +5,7 @@ export const CreateTeamNeedDtoSchema = z.object({
   teamId: z.number().positive('Team ID is required'),
   position: z.string().min(1, 'Position is required').max(10, 'Position cannot exceed 10 characters'),
   priority: z.number().min(1, 'Priority must be at least 1').max(10, 'Priority cannot exceed 10').default(1),
-  draftYear: z.number().min(2000).max(2030).optional(),
+  draftYear: z.number().min(2000).max(2030),
 });
 
 export const UpdateTeamNeedDtoSchema = CreateTeamNeedDtoSchema.partial();
@@ -32,7 +32,7 @@ export interface TeamNeedResponseDto {
   teamId?: number;
   position?: string;
   priority?: number;
-  draftYear?: number;
+  draftYear: number;
   isHighPriority: boolean;
   isForCurrentDraft: boolean;
   createdAt?: string;

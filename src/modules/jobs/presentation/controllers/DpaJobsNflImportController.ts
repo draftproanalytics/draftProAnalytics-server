@@ -10,6 +10,7 @@ import type { EnqueueEnrichPlayerTeamPositionsJobUseCase } from '../../applicati
 import type { EnqueueLoadEspnTeamRostersJobUseCase } from '../../application/use-cases/EnqueueLoadEspnTeamRostersJobUseCase';
 import type { EnqueueLoadNflSeasonScheduleJobUseCase } from '../../application/use-cases/EnqueueLoadNflSeasonScheduleJobUseCase';
 import type { EnqueueSyncPostSeasonResultsJobUseCase } from '../../application/use-cases/EnqueueSyncPostSeasonResultsJobUseCase';
+import type { EnqueueGenerateTeamNeedsJobUseCase } from '../../application/use-cases/EnqueueGenerateTeamNeedsJobUseCase';
 import type { ListDpaJobsUseCase } from '../../application/use-cases/ListDpaJobsUseCase';
 import type { ProcessDpaJobQueueUseCase } from '../../application/use-cases/ProcessDpaJobQueueUseCase';
 import type { ReadDpaJobUseCase } from '../../application/use-cases/ReadDpaJobUseCase';
@@ -22,6 +23,7 @@ import {
   parseSyncEspnDraftPicksToDpaPayload,
   parseLoadEspnTeamRostersPayload,
   parseSyncPostSeasonResultsPayload,
+  parseGenerateTeamNeedsPayload,
 } from '../../application/validators/NflImportValidators';
 
 interface CancelJobRequestBody {
@@ -77,6 +79,7 @@ export class DpaJobsNflImportController {
     private readonly enqueueSyncEspnDraftPicksToDpaJobUseCase: EnqueueSyncEspnDraftPicksToDpaJobUseCase,
     private readonly enqueueLoadEspnTeamRostersJobUseCase: EnqueueLoadEspnTeamRostersJobUseCase,
     private readonly enqueueSyncPostSeasonResultsJobUseCase: EnqueueSyncPostSeasonResultsJobUseCase,
+    private readonly enqueueGenerateTeamNeedsJobUseCase: EnqueueGenerateTeamNeedsJobUseCase,
     private readonly processDpaJobQueueUseCase: ProcessDpaJobQueueUseCase,
     private readonly listDpaJobsUseCase: ListDpaJobsUseCase,
     private readonly readDpaJobUseCase: ReadDpaJobUseCase,
@@ -144,6 +147,16 @@ export class DpaJobsNflImportController {
     try {
       const payload = parseSyncPostSeasonResultsPayload(req.body);
       res.status(202).json(await this.enqueueSyncPostSeasonResultsJobUseCase.execute(payload));
+    } catch (error) {
+      this.writeBadRequest(res, error);
+    }
+  };
+
+
+  public enqueueGenerateTeamNeeds = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const payload = parseGenerateTeamNeedsPayload(req.body);
+      res.status(202).json(await this.enqueueGenerateTeamNeedsJobUseCase.execute(payload));
     } catch (error) {
       this.writeBadRequest(res, error);
     }
@@ -226,6 +239,7 @@ export class DpaJobsNflImportController {
         DpaJobType.SyncEspnDraftPicksToDpa,
         DpaJobType.LoadEspnTeamRosters,
         DpaJobType.SyncPostSeasonResultsFromGames,
+        DpaJobType.GenerateTeamNeeds,
       ],
       queueJobs: [
         DpaJobType.ProcessJobQueue,

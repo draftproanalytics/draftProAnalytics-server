@@ -3,7 +3,7 @@ import { TeamNeedSuggestionDto } from "../dtos/TeamNeedDtos";
 
 export interface AnalyzeTeamNeedsOptions {
   evaluationYear: number;
-  draftYear: number | null;
+  draftYear: number;
 }
 
 export class TeamNeedsAnalyzerService {

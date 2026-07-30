@@ -8,6 +8,7 @@ export const DpaJobType = {
   SyncEspnDraftPicksToDpa: 'SYNC_ESPN_DRAFT_PICKS_TO_DPA',
   LoadEspnTeamRosters: 'LOAD_ESPN_TEAM_ROSTERS',
   SyncPostSeasonResultsFromGames: 'SYNC_POSTSEASON_RESULTS_FROM_GAMES',
+  GenerateTeamNeeds: 'GENERATE_TEAM_NEEDS',
   ProcessJobQueue: 'PROCESS_JOB_QUEUE',
 } as const;
 
@@ -22,6 +23,7 @@ export const executableDpaJobTypes: readonly DpaJobType[] = [
   DpaJobType.SyncEspnDraftPicksToDpa,
   DpaJobType.LoadEspnTeamRosters,
   DpaJobType.SyncPostSeasonResultsFromGames,
+  DpaJobType.GenerateTeamNeeds,
 ];
 
 export const isExecutableDpaJobType = (value: string): value is DpaJobType =>

@@ -61,8 +61,8 @@ export class PrismaPostDraftDataProvider implements IPostDraftDataProvider {
         select: { finalB4MeScore: true }
       });
       const need = await this.prisma.teamNeed.findFirst({
-        where: { teamId, position, OR: [{ draftYear }, { draftYear: null }] },
-        orderBy: [{ draftYear: 'desc' }, { priority: 'asc' }],
+        where: { teamId, position, draftYear, status: 'APPROVED' },
+        orderBy: { priority: 'asc' },
         select: { priority: true }
       });
       const playerName = prospect
