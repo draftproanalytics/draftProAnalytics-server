@@ -33,11 +33,24 @@ export class RosterAnalyzerService {
   private readonly DEPTH_PERFORMANCE_THRESHOLD = 55;
   private readonly AGING_THRESHOLD = 30;
   private readonly CONTRACT_EXPIRY_THRESHOLD = 1;
+  private readonly EXPECTED_ROSTER_COUNTS: Readonly<Record<string, number>> = {
+    QB: 3,
+    RB: 6,
+    WR: 9,
+    TE: 5,
+    OT: 6,
+    IOL: 7,
+    EDGE: 5,
+    DT: 6,
+    LB: 7,
+    CB: 8,
+    S: 6,
+    K: 1,
+    P: 1,
+    LS: 1,
+  };
 
-  analyzePositionDepth(
-    position: string,
-    players: RosterPlayer[]
-  ): PositionDepthAnalysis {
+  analyzePositionDepth(position: string, players: RosterPlayer[]): PositionDepthAnalysis {
     const positionPlayers = players.filter((p) => p.position === position);
 
     if (positionPlayers.length === 0) {
@@ -72,24 +85,25 @@ export class RosterAnalyzerService {
   private calculateDepthQuality(players: RosterPlayer[]): number {
     if (players.length === 0) return 0;
 
+    const position = players[0]?.position;
     const starters = players.filter((p) => p.isStarter);
     const backups = players.filter((p) => !p.isStarter);
 
-    // Starter quality (60% weight)
     const starterQuality =
       starters.length > 0
         ? starters.reduce((sum, p) => sum + p.performanceGrade, 0) / starters.length
-        : 0;
+        : players.reduce((sum, p) => sum + p.performanceGrade, 0) / players.length;
 
-    // Backup quality (40% weight)
+    if (position === 'K' || position === 'P') {
+      return Math.min(100, Math.max(0, starterQuality));
+    }
+
     const backupQuality =
       backups.length > 0
         ? backups.reduce((sum, p) => sum + p.performanceGrade, 0) / backups.length
-        : 0;
+        : starterQuality * 0.75;
 
     const weightedQuality = starterQuality * 0.6 + backupQuality * 0.4;
-
-    // Normalize to 0-100 scale
     return Math.min(100, Math.max(0, weightedQuality));
   }
 
@@ -113,9 +127,7 @@ export class RosterAnalyzerService {
 
   private hasInjuryConcern(players: RosterPlayer[]): boolean {
     const injuredPlayers = players.filter(
-      (p) =>
-        p.injuryStatus &&
-        ['OUT', 'INJURED_RESERVE', 'DOUBTFUL'].includes(p.injuryStatus)
+      (p) => p.injuryStatus && ['OUT', 'INJURED_RESERVE', 'DOUBTFUL'].includes(p.injuryStatus)
     );
     return injuredPlayers.length > 0;
   }
@@ -137,44 +149,36 @@ export class RosterAnalyzerService {
   }
 
   calculateNeedScore(analysis: PositionDepthAnalysis): number {
-    let needScore = 0;
+    const expectedCount = this.EXPECTED_ROSTER_COUNTS[analysis.position] ?? 3;
 
-    // Lack of players (30 points max)
-    if (analysis.totalPlayers === 0) {
-      needScore += 30;
-    } else if (analysis.totalPlayers === 1) {
-      needScore += 25;
-    } else if (analysis.totalPlayers === 2) {
-      needScore += 15;
+    if (
+      (analysis.position === 'K' || analysis.position === 'P') &&
+      analysis.totalPlayers >= 1 &&
+      analysis.averagePerformance >= 60 &&
+      !analysis.contractExpiryConcern &&
+      !analysis.injuryConcern
+    ) {
+      return 0;
     }
 
-    // Poor depth quality (25 points max)
+    let needScore = 0;
+    const rosterRatio = expectedCount > 0 ? analysis.totalPlayers / expectedCount : 1;
+
+    if (analysis.totalPlayers === 0) needScore += 30;
+    else if (rosterRatio < 0.5) needScore += 25;
+    else if (rosterRatio < 0.75) needScore += 15;
+    else if (rosterRatio < 1) needScore += 8;
+
     const depthDeficit = 100 - analysis.depthQuality;
     needScore += (depthDeficit / 100) * 25;
 
-    // Low performance (20 points max)
-    if (analysis.averagePerformance < 50) {
-      needScore += 20;
-    } else if (analysis.averagePerformance < 60) {
-      needScore += 15;
-    } else if (analysis.averagePerformance < 70) {
-      needScore += 10;
-    }
+    if (analysis.averagePerformance < 50) needScore += 20;
+    else if (analysis.averagePerformance < 60) needScore += 15;
+    else if (analysis.averagePerformance < 70) needScore += 10;
 
-    // Aging concern (10 points max)
-    if (analysis.ageingConcern) {
-      needScore += 10;
-    }
-
-    // Contract expiry (10 points max)
-    if (analysis.contractExpiryConcern) {
-      needScore += 10;
-    }
-
-    // Injury concern (5 points max)
-    if (analysis.injuryConcern) {
-      needScore += 5;
-    }
+    if (analysis.ageingConcern) needScore += 10;
+    if (analysis.contractExpiryConcern) needScore += 10;
+    if (analysis.injuryConcern) needScore += 5;
 
     return Math.min(100, Math.max(0, needScore));
   }
