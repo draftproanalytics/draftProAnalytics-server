@@ -166,3 +166,14 @@ export const parseGenerateTeamNeedsPayload = (body: unknown): import('../../doma
     requestedByPersonId: typeof request.requestedByPersonId === 'number' && Number.isInteger(request.requestedByPersonId) ? request.requestedByPersonId : undefined,
   };
 };
+
+export const parseImportNflversePlayerProductionPayload = (body: unknown): { seasonYear: number; teamId?: number; summaryLevel: 'reg' | 'post' | 'regpost'; requestedByPersonId?: number } => {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Request body is required.');
+  const row = body as Record<string, unknown>; const seasonYear = Number(row.seasonYear);
+  if (!Number.isInteger(seasonYear) || seasonYear < 1999 || seasonYear > 2100) throw new Error('seasonYear must be a valid NFL season.');
+  const summaryLevel = row.summaryLevel === 'post' || row.summaryLevel === 'regpost' ? row.summaryLevel : 'reg';
+  const teamId = row.teamId === undefined || row.teamId === null ? undefined : Number(row.teamId);
+  if (teamId !== undefined && (!Number.isInteger(teamId) || teamId <= 0)) throw new Error('teamId must be a positive integer.');
+  const requestedByPersonId = typeof row.requestedByPersonId === 'number' ? row.requestedByPersonId : undefined;
+  return { seasonYear, teamId, summaryLevel, requestedByPersonId };
+};

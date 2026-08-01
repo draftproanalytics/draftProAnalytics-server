@@ -1644,6 +1644,32 @@ model DraftTeamScorecardEvaluation {
   @@index([draftTeamScorecardId, evaluationType, isCurrent], map: "idx_DTSE_scorecard_type_current")
 }
 
+model NflversePlayerProductionStaging {
+  id                    BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  importJobId           Int
+  seasonYear            Int       @db.Year
+  summaryLevel          String    @default("reg") @db.VarChar(16)
+  externalPlayerId      String    @db.VarChar(32)
+  playerName            String    @db.VarChar(150)
+  teamAbbreviation      String    @default("") @db.VarChar(8)
+  position              String?   @db.VarChar(10)
+  positionGroup         String?   @db.VarChar(10)
+  metricsJson           Json
+  suggestedRosterPlayerId String? @db.VarChar(36)
+  matchedRosterPlayerId String?   @db.VarChar(36)
+  matchConfidence       Decimal?  @db.Decimal(5, 2)
+  matchStatus           String    @default("UNMATCHED") @db.VarChar(20)
+  reviewNotes           String?   @db.VarChar(500)
+  promotedEvaluationId BigInt?    @db.UnsignedBigInt
+  createdAt             DateTime  @default(now()) @db.DateTime(0)
+  updatedAt             DateTime  @default(now()) @db.DateTime(0)
+
+  @@unique([seasonYear, summaryLevel, externalPlayerId, teamAbbreviation], map: "uq_NflverseProduction_source")
+  @@index([seasonYear, matchStatus], map: "idx_NflverseProduction_review")
+  @@index([importJobId], map: "idx_NflverseProduction_job")
+  @@index([matchedRosterPlayerId], map: "idx_NflverseProduction_roster")
+}
+
 model PlayerSeasonEvaluation {
   id                    BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
   rosterPlayerId        String    @db.VarChar(36)

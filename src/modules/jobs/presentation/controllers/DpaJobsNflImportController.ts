@@ -11,6 +11,7 @@ import type { EnqueueLoadEspnTeamRostersJobUseCase } from '../../application/use
 import type { EnqueueLoadNflSeasonScheduleJobUseCase } from '../../application/use-cases/EnqueueLoadNflSeasonScheduleJobUseCase';
 import type { EnqueueSyncPostSeasonResultsJobUseCase } from '../../application/use-cases/EnqueueSyncPostSeasonResultsJobUseCase';
 import type { EnqueueGenerateTeamNeedsJobUseCase } from '../../application/use-cases/EnqueueGenerateTeamNeedsJobUseCase';
+import type { EnqueueImportNflversePlayerProductionJobUseCase } from '../../application/use-cases/EnqueueImportNflversePlayerProductionJobUseCase';
 import type { ListDpaJobsUseCase } from '../../application/use-cases/ListDpaJobsUseCase';
 import type { ProcessDpaJobQueueUseCase } from '../../application/use-cases/ProcessDpaJobQueueUseCase';
 import type { ReadDpaJobUseCase } from '../../application/use-cases/ReadDpaJobUseCase';
@@ -24,6 +25,7 @@ import {
   parseLoadEspnTeamRostersPayload,
   parseSyncPostSeasonResultsPayload,
   parseGenerateTeamNeedsPayload,
+  parseImportNflversePlayerProductionPayload,
 } from '../../application/validators/NflImportValidators';
 
 interface CancelJobRequestBody {
@@ -80,6 +82,7 @@ export class DpaJobsNflImportController {
     private readonly enqueueLoadEspnTeamRostersJobUseCase: EnqueueLoadEspnTeamRostersJobUseCase,
     private readonly enqueueSyncPostSeasonResultsJobUseCase: EnqueueSyncPostSeasonResultsJobUseCase,
     private readonly enqueueGenerateTeamNeedsJobUseCase: EnqueueGenerateTeamNeedsJobUseCase,
+    private readonly enqueueImportNflversePlayerProductionJobUseCase: EnqueueImportNflversePlayerProductionJobUseCase,
     private readonly processDpaJobQueueUseCase: ProcessDpaJobQueueUseCase,
     private readonly listDpaJobsUseCase: ListDpaJobsUseCase,
     private readonly readDpaJobUseCase: ReadDpaJobUseCase,
@@ -162,6 +165,11 @@ export class DpaJobsNflImportController {
     }
   };
 
+  public enqueueImportNflversePlayerProduction = async (req: Request, res: Response): Promise<void> => {
+    try { res.status(202).json(await this.enqueueImportNflversePlayerProductionJobUseCase.execute(parseImportNflversePlayerProductionPayload(req.body))); }
+    catch (error) { this.writeBadRequest(res, error); }
+  };
+
   public processQueue = async (req: Request, res: Response): Promise<void> => {
     try {
       const body = req.body as ProcessQueueRequestBody;
@@ -240,6 +248,7 @@ export class DpaJobsNflImportController {
         DpaJobType.LoadEspnTeamRosters,
         DpaJobType.SyncPostSeasonResultsFromGames,
         DpaJobType.GenerateTeamNeeds,
+        DpaJobType.ImportNflversePlayerProduction,
       ],
       queueJobs: [
         DpaJobType.ProcessJobQueue,

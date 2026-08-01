@@ -59,7 +59,9 @@ export class PrismaTeamNeedsGenerationRepository implements ITeamNeedsGeneration
     }
     const positions = new Set([...assessments.map((row) => row.position), ...contexts.map((row) => row.position)]);
     return [...positions].map((position) => {
-      const assessment = assessments.find((row) => row.position === position);
+      const positionAssessments = assessments.filter((row) => row.position === position);
+      const assessment = positionAssessments.find((row) => row.assessmentType !== 'AUTO_NFLVERSE')
+        ?? positionAssessments.find((row) => row.assessmentType === 'AUTO_NFLVERSE');
       const positionContexts = contextsByPosition.get(position) ?? [];
       const combinedContextRisk = 100 * (1 - positionContexts.reduce((remaining, row) => {
         const weight = Number(row.appliedWeight ?? row.contextScore ?? 0) / 100;

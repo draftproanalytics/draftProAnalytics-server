@@ -10,6 +10,7 @@ import type { SyncEspnDraftPicksToDpaJobHandler } from './SyncEspnDraftPicksToDp
 import type { LoadEspnTeamRostersJobHandler } from './LoadEspnTeamRostersJobHandler';
 import type { SyncPostSeasonResultsJobHandler } from './SyncPostSeasonResultsJobHandler';
 import type { GenerateTeamNeedsJobHandler } from './GenerateTeamNeedsJobHandler';
+import type { ImportNflversePlayerProductionJobHandler } from './ImportNflversePlayerProductionJobHandler';
 
 export interface ProcessJobQueueResultDto {
   readonly claimed: number;
@@ -29,6 +30,7 @@ export class DpaJobQueueProcessor {
     private readonly loadEspnTeamRostersJobHandler: LoadEspnTeamRostersJobHandler,
     private readonly syncPostSeasonResultsJobHandler: SyncPostSeasonResultsJobHandler,
     private readonly generateTeamNeedsJobHandler: GenerateTeamNeedsJobHandler,
+    private readonly importNflversePlayerProductionJobHandler: ImportNflversePlayerProductionJobHandler,
   ) {}
 
   public async processNextJobs(take: number): Promise<ProcessJobQueueResultDto> {
@@ -66,6 +68,8 @@ export class DpaJobQueueProcessor {
           await this.syncPostSeasonResultsJobHandler.execute(job);
         } else if (job.type === DpaJobType.GenerateTeamNeeds) {
           await this.generateTeamNeedsJobHandler.execute(job);
+        } else if (job.type === DpaJobType.ImportNflversePlayerProduction) {
+          await this.importNflversePlayerProductionJobHandler.execute(job);
         } else {
           throw new Error(`Unsupported job type: ${job.type}`);
         }
