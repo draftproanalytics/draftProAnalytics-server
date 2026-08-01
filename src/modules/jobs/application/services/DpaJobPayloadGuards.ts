@@ -138,3 +138,14 @@ export const readGenerateTeamNeedsPayload = (payload: unknown): import('../../do
     algorithmVersion: typeof record.algorithmVersion === 'string' && record.algorithmVersion !== '' ? record.algorithmVersion : 'team-needs-v4',
   };
 };
+
+export const readImportNflversePlayerProductionPayload = (payload: unknown): { seasonYear: number; teamId?: number; summaryLevel: 'reg' | 'post' | 'regpost'; requestedByPersonId?: number } => {
+  const row = asPayloadRecord(payload);
+  if (typeof row.seasonYear !== 'number' || !Number.isInteger(row.seasonYear) || row.seasonYear < 1999) {
+    throw new Error('Job payload has an invalid seasonYear.');
+  }
+  const summaryLevel = row.summaryLevel === 'post' || row.summaryLevel === 'regpost' ? row.summaryLevel : 'reg';
+  const teamId = typeof row.teamId === 'number' && Number.isInteger(row.teamId) && row.teamId > 0 ? row.teamId : undefined;
+  const requestedByPersonId = typeof row.requestedByPersonId === 'number' && Number.isInteger(row.requestedByPersonId) ? row.requestedByPersonId : undefined;
+  return { seasonYear: row.seasonYear, teamId, summaryLevel, requestedByPersonId };
+};

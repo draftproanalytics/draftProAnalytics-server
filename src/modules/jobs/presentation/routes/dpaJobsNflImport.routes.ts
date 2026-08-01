@@ -10,6 +10,7 @@ import { EnqueueLoadEspnTeamRostersJobUseCase } from '../../application/use-case
 import { EnqueueLoadNflSeasonScheduleJobUseCase } from '../../application/use-cases/EnqueueLoadNflSeasonScheduleJobUseCase';
 import { EnqueueSyncPostSeasonResultsJobUseCase } from '../../application/use-cases/EnqueueSyncPostSeasonResultsJobUseCase';
 import { EnqueueGenerateTeamNeedsJobUseCase } from '../../application/use-cases/EnqueueGenerateTeamNeedsJobUseCase';
+import { EnqueueImportNflversePlayerProductionJobUseCase } from '../../application/use-cases/EnqueueImportNflversePlayerProductionJobUseCase';
 import { ListDpaJobsUseCase } from '../../application/use-cases/ListDpaJobsUseCase';
 import { ReadDpaJobUseCase } from '../../application/use-cases/ReadDpaJobUseCase';
 import { CancelDpaJobUseCase } from '../../application/use-cases/CancelDpaJobUseCase';
@@ -24,9 +25,11 @@ import { LoadEspnTeamRostersJobHandler } from '../../application/services/LoadEs
 import { LoadNflSeasonScheduleJobHandler } from '../../application/services/LoadNflSeasonScheduleJobHandler';
 import { SyncPostSeasonResultsJobHandler } from '../../application/services/SyncPostSeasonResultsJobHandler';
 import { GenerateTeamNeedsJobHandler } from '../../application/services/GenerateTeamNeedsJobHandler';
+import { ImportNflversePlayerProductionJobHandler } from '../../application/services/ImportNflversePlayerProductionJobHandler';
 import { EspnDraftProvider } from '../../infrastructure/external/EspnDraftProvider';
 import { EspnRosterProvider } from '../../infrastructure/external/EspnRosterProvider';
 import { EspnNflScheduleProvider } from '../../infrastructure/external/EspnNflScheduleProvider';
+import { NflversePlayerProductionProvider } from '../../infrastructure/external/NflversePlayerProductionProvider';
 import { PrismaDpaTeamIdentityResolver } from '../../infrastructure/persistence/PrismaDpaTeamIdentityResolver';
 import { PrismaGameScheduleRepository } from '../../infrastructure/persistence/PrismaGameScheduleRepository';
 import { PrismaEspnDraftImportRepository } from '../../infrastructure/persistence/PrismaEspnDraftImportRepository';
@@ -34,6 +37,8 @@ import { PrismaEspnRosterImportRepository } from '../../infrastructure/persisten
 import { PrismaJobQueueRepository } from '../../infrastructure/persistence/PrismaJobQueueRepository';
 import { PrismaPostSeasonResultSyncRepository } from '../../infrastructure/persistence/PrismaPostSeasonResultSyncRepository';
 import { PrismaTeamNeedsGenerationRepository } from '../../infrastructure/persistence/PrismaTeamNeedsGenerationRepository';
+import { PrismaNflversePlayerProductionRepository } from '../../infrastructure/persistence/PrismaNflversePlayerProductionRepository';
+import { createNflversePlayerProductionRouter } from './nflversePlayerProduction.routes';
 import { DpaJobsNflImportController } from '../controllers/DpaJobsNflImportController';
 
 // If your app uses RBAC here, add your existing middleware, for example:
@@ -52,6 +57,8 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   const gameScheduleRepository = new PrismaGameScheduleRepository(prisma, teamIdentityResolver);
   const postSeasonResultSyncRepository = new PrismaPostSeasonResultSyncRepository(prisma);
   const teamNeedsGenerationRepository = new PrismaTeamNeedsGenerationRepository(prisma);
+  const nflversePlayerProductionRepository = new PrismaNflversePlayerProductionRepository(prisma);
+  const nflversePlayerProductionProvider = new NflversePlayerProductionProvider();
 
   const loadNflSeasonScheduleJobHandler = new LoadNflSeasonScheduleJobHandler(
     jobQueueRepository,
@@ -72,6 +79,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   const loadEspnTeamRostersJobHandler = new LoadEspnTeamRostersJobHandler(jobQueueRepository, espnRosterProvider, espnRosterImportRepository);
   const syncPostSeasonResultsJobHandler = new SyncPostSeasonResultsJobHandler(jobQueueRepository, postSeasonResultSyncRepository);
   const generateTeamNeedsJobHandler = new GenerateTeamNeedsJobHandler(jobQueueRepository, teamNeedsGenerationRepository);
+  const importNflversePlayerProductionJobHandler = new ImportNflversePlayerProductionJobHandler(jobQueueRepository, nflversePlayerProductionProvider, nflversePlayerProductionRepository);
 
   const jobQueueProcessor = new DpaJobQueueProcessor(
     jobQueueRepository,
@@ -84,6 +92,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
     loadEspnTeamRostersJobHandler,
     syncPostSeasonResultsJobHandler,
     generateTeamNeedsJobHandler,
+    importNflversePlayerProductionJobHandler,
   );
 
   const controller = new DpaJobsNflImportController(
@@ -96,6 +105,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
     new EnqueueLoadEspnTeamRostersJobUseCase(jobQueueRepository),
     new EnqueueSyncPostSeasonResultsJobUseCase(jobQueueRepository),
     new EnqueueGenerateTeamNeedsJobUseCase(jobQueueRepository),
+    new EnqueueImportNflversePlayerProductionJobUseCase(jobQueueRepository),
     new ProcessDpaJobQueueUseCase(jobQueueProcessor),
     new ListDpaJobsUseCase(jobQueueRepository),
     new ReadDpaJobUseCase(jobQueueRepository),
@@ -103,6 +113,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   );
 
   router.get('/types', controller.readSupportedJobTypes);
+  router.use('/player-production', createNflversePlayerProductionRouter(prisma, nflversePlayerProductionRepository));
   router.get('/', controller.listJobs);
   router.get('/:jobId', controller.readJob);
   router.get('/:jobId/logs', controller.readJobLogs);
@@ -116,6 +127,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   router.post('/imports/espn-team-rosters', controller.enqueueLoadEspnTeamRosters);
   router.post('/imports/postseason-results/sync', controller.enqueueSyncPostSeasonResults);
   router.post('/team-needs/generate', controller.enqueueGenerateTeamNeeds);
+  router.post('/imports/nflverse-player-production', controller.enqueueImportNflversePlayerProduction);
   router.post('/queue/process', controller.processQueue);
   router.post('/:jobId/cancel', controller.cancelJob);
 
