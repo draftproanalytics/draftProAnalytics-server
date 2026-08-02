@@ -1,12 +1,11 @@
-
 {
   "name": "sports_mgmt_app-server",
   "version": "1.0.0",
-  "description": "Sports Management REST API Server",
+  "description": "DraftProAnalytics\u2122 REST API server",
   "main": "dist/index.js",
   "scripts": {
     "clean": "rimraf dist",
-    "build": "tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json && echo \"✅ build ok\" && ls -la dist | head",
+    "build": "tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json && echo \"\u2705 build ok\" && ls -la dist | head",
     "start": "node dist/index.js",
     "dev:orig": "ts-node src/index.ts",
     "dev": "NODE_ENV=development nodemon --exec ts-node -r tsconfig-paths/register -P tsconfig.server.json src/index.ts",
@@ -109,8 +108,8 @@
     "@": "./dist"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Darryl Thompson",
+  "license": "UNLICENSED",
   "// EXAMPLE USAGE": {
     "// Import current year draft": "npm run import:draft",
     "// Import specific year draft": "npm run import:draft:year 2024"
