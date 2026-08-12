@@ -5,18 +5,26 @@ import type { IAccessPermissionRepository } from "@/modules/accessControl/domain
 export class PrismaAccessPermissionRepository implements IAccessPermissionRepository {
   public constructor(private readonly prisma: PrismaClient) {}
 
-  public async hasRolePermission(roleId: number, domain: string, action: string): Promise<boolean> {
-    // Adjust column names here if needed:
-    // rp.domainCode, pa.actionCode, pa.rolePermissionId
-    const rows = await this.prisma.$queryRaw<Array<{ allowed: number }>>`
-      SELECT 1 AS allowed
-      FROM RolePermission rp
-      JOIN PermissionAction pa ON pa.rolePermissionId = rp.id
-      WHERE rp.roleId = ${roleId}
-        AND rp.domainCode = ${domain}
-        AND pa.actionCode = ${action}
-      LIMIT 1
-    `;
-    return rows.length > 0;
-  }
+
+  public async hasRolePermission(
+  roleId: number,
+  domain: string,
+  action: string
+): Promise<boolean> {
+  const rows = await this.prisma.$queryRaw<Array<{ allowed: number }>>`
+    SELECT 1 AS allowed
+    FROM RolePermission rp
+    JOIN FeatureDomain fd
+      ON fd.domainId = rp.domainId
+    JOIN PermissionAction pa
+      ON pa.actionId = rp.actionId
+    WHERE rp.roleId = ${roleId}
+      AND fd.domainCode = ${domain}
+      AND pa.actionCode = ${action}
+      AND rp.isAllowed = 1
+    LIMIT 1
+  `;
+
+  return rows.length > 0;
+}
 }

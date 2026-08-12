@@ -1,5 +1,3 @@
-// src/domain/prospect/entity/Prospect.ts
-
 export class Prospect {
   constructor(
     public readonly id: number | undefined,
@@ -7,20 +5,10 @@ export class Prospect {
     public readonly lastName: string,
     public readonly position: string,
     public readonly college: string,
-    public readonly height?: number,
-    public readonly weight?: number,
-    public readonly handSize?: number,
-    public readonly armLength?: number,
     public readonly homeCity?: string,
     public readonly homeState?: string,
-    public readonly fortyTime?: number,
-    public readonly tenYardSplit?: number,
-    public readonly verticalLeap?: number,
-    public readonly broadJump?: number,
-    public readonly threeCone?: number,
-    public readonly twentyYardShuttle?: number,
-    public readonly benchPress?: number,
     public readonly drafted: boolean = false,
+    public readonly draftStatus: 'PRE_DRAFT' | 'DRAFTED' | 'UDFA' = 'PRE_DRAFT',
     public readonly draftYear?: number,
     public readonly teamId?: number,
     public readonly draftPickId?: number,
@@ -35,40 +23,18 @@ export class Prospect {
       data.lastName,
       data.position,
       data.college,
-      data.height,
-      data.weight,
-      data.handSize,
-      data.armLength,
-      data.homeCity,
-      data.homeState,
-      data.fortyTime,
-      data.tenYardSplit,
-      data.verticalLeap,
-      data.broadJump,
-      data.threeCone,
-      data.twentyYardShuttle,
-      data.benchPress,
+      data.homeCity ?? undefined,
+      data.homeState ?? undefined,
       data.drafted,
-      data.draftYear,
-      data.teamId,
-      data.draftPickId,
-      data.createdAt,
-      data.updatedAt
-    )
+      data.draftStatus ?? (data.drafted ? 'DRAFTED' : 'PRE_DRAFT'),
+      data.draftYear ?? undefined,
+      data.teamId ?? undefined,
+      data.draftPickId ?? undefined,
+      data.createdAt ?? undefined,
+      data.updatedAt ?? undefined
+    );
   }
 
-  get fullName(): string {
-    return `${this.firstName} ${this.lastName}`
-  }
-
-  isAvailable(): boolean {
-    return !this.drafted
-  }
-
-  get displayHeight(): string {
-    if (!this.height) return 'N/A'
-    const feet = Math.floor(this.height / 12)
-    const inches = this.height % 12
-    return `${feet}'${inches}"`
-  }
+  get fullName(): string { return `${this.firstName} ${this.lastName}`; }
+  isAvailable(): boolean { return this.draftStatus === 'PRE_DRAFT'; }
 }

@@ -4,6 +4,8 @@ import { CombineScoreService } from '@/application/combineScore/services/Combine
 import { ApiResponse, PaginatedResponse } from '@/shared/types/common';
 import { 
   CombineScoreResponseDto, 
+  CombineScoreWorkspaceFiltersDto,
+  CombineScoreWorkspaceItemDto,
   CombineScoreFiltersDto, 
   PaginationDto,
   TopPerformersDto,
@@ -49,32 +51,43 @@ export class CombineScoreController {
 
   getAllCombineScores = async (
     req: Request,
-    res: Response<{success: boolean, data: CombineScoreResponseDto[], pagination:any}>,
+    res: Response<{ success: boolean; data: CombineScoreResponseDto[]; pagination: PaginatedResponse<CombineScoreResponseDto>['pagination'] }>,
     next: NextFunction
   ): Promise<void> => {
     try {
-      const filters: CombineScoreFiltersDto = {
-        playerId: req.query.playerId ? parseInt(req.query.playerId as string) : undefined,
-        fortyTimeMin: req.query.fortyTimeMin ? parseFloat(req.query.fortyTimeMin as string) : undefined,
-        fortyTimeMax: req.query.fortyTimeMax ? parseFloat(req.query.fortyTimeMax as string) : undefined,
-        verticalLeapMin: req.query.verticalLeapMin ? parseFloat(req.query.verticalLeapMin as string) : undefined,
-        verticalLeapMax: req.query.verticalLeapMax ? parseFloat(req.query.verticalLeapMax as string) : undefined,
-        broadJumpMin: req.query.broadJumpMin ? parseFloat(req.query.broadJumpMin as string) : undefined,
-        broadJumpMax: req.query.broadJumpMax ? parseFloat(req.query.broadJumpMax as string) : undefined,
-        hasCompleteWorkout: req.query.hasCompleteWorkout ? req.query.hasCompleteWorkout === 'true' : undefined,
-      };
-
-      const pagination: PaginationDto = {
-        page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
-      };
-
-      const combineScores = await this.combineScoreService.getAllCombineScores(filters, pagination);
-      res.json({
-        success: true,
-        data: combineScores.data,
-        pagination: combineScores.pagination,
+      const query = req.query as unknown as CombineScoreFiltersDto & PaginationDto;
+      const combineScores = await this.combineScoreService.getAllCombineScores(query, {
+        page: query.page ?? 1,
+        limit: query.limit ?? query.pageSize ?? 10,
       });
+      res.json({ success: true, data: combineScores.data, pagination: combineScores.pagination });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getWorkspace = async (
+    req: Request,
+    res: Response<{ success: boolean; data: CombineScoreWorkspaceItemDto[]; pagination: PaginatedResponse<CombineScoreWorkspaceItemDto>['pagination'] }>,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const query = req.query as unknown as CombineScoreWorkspaceFiltersDto & PaginationDto;
+      const filters: CombineScoreWorkspaceFiltersDto = {
+        draftYear: query.draftYear,
+        position: query.position,
+        college: query.college,
+        playerName: query.playerName,
+        combineStatus: query.combineStatus,
+        sortField: query.sortField ?? 'name',
+        sortOrder: query.sortOrder ?? 'asc',
+      };
+      const pageSize = query.pageSize ?? query.limit ?? 25;
+      const result = await this.combineScoreService.getWorkspace(filters, {
+        page: query.page ?? 1,
+        limit: pageSize,
+      });
+      res.json({ success: true, data: result.data, pagination: result.pagination });
     } catch (error) {
       next(error);
     }
@@ -141,6 +154,28 @@ export class CombineScoreController {
     }
   };
 
+
+  getCombineScoreByProspectId = async (
+    req: Request,
+    res: Response<ApiResponse<CombineScoreResponseDto | null>>,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const prospectId = parseInt(req.params.prospectId);
+      const combineScore = await this.combineScoreService.getCombineScoreByProspectId(prospectId);
+      if (!combineScore) {
+        res.status(404).json({
+          success: false,
+          message: `No combine score found for prospect ${prospectId}`,
+        });
+        return;
+      }
+      res.json({ success: true, data: combineScore });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getCombineScoresByPlayerIds = async (
     req: Request,
     res: Response<ApiResponse<CombineScoreResponseDto[]>>,
@@ -176,7 +211,7 @@ export class CombineScoreController {
       const { metric, limit } = req.query;
       
       const dto: TopPerformersDto = {
-        metric: metric as any,
+        metric: metric as TopPerformersDto['metric'],
         limit: limit ? parseInt(limit as string) : 10,
       };
 

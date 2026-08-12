@@ -1,6 +1,7 @@
-// src/application/prospect/services/ProspectService.ts
 import { IProspectRepository } from '@/domain/prospect/repositories/IProspectRepository';
+import { ICombineScoreRepository } from '@/domain/combineScore/repositories/ICombineScoreRepository';
 import { Prospect } from '@/domain/prospect/entities/Prospect';
+import { CombineScore } from '@/domain/combineScore/entities/CombineScore';
 import { NotFoundError, ConflictError } from '@/shared/errors/AppError';
 import { PaginatedResponse, PaginationParams } from '@/shared/types/common';
 import {
@@ -17,313 +18,218 @@ import {
 } from '../dto/ProspectDto';
 
 export class ProspectService {
-  constructor(private readonly prospectRepository: IProspectRepository) {}
+  constructor(
+    private readonly prospectRepository: IProspectRepository,
+    private readonly combineScoreRepository: ICombineScoreRepository
+  ) {}
 
   async createProspect(dto: CreateProspectDto): Promise<ProspectResponseDto> {
-    // Check for potential duplicates
-    const existingProspects = await this.prospectRepository.findAll({
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      college: dto.college,
-    });
-
-    if (existingProspects.data.length > 0) {
-      throw new ConflictError(
-        `A prospect with the name ${dto.firstName} ${dto.lastName} from ${dto.college} already exists`
-      );
+    const existing = await this.prospectRepository.findAll({ firstName: dto.firstName, lastName: dto.lastName, college: dto.college });
+    if (existing.data.length > 0) {
+      throw new ConflictError(`A prospect with the name ${dto.firstName} ${dto.lastName} from ${dto.college} already exists`);
     }
-
     const prospect = Prospect.create({
       firstName: dto.firstName,
       lastName: dto.lastName,
       position: dto.position,
       college: dto.college,
-      height: dto.height,
-      weight: dto.weight,
-      handSize: dto.handSize,
-      armLength: dto.armLength,
       homeCity: dto.homeCity,
       homeState: dto.homeState,
-      fortyTime: dto.fortyTime,
-      tenYardSplit: dto.tenYardSplit,
-      verticalLeap: dto.verticalLeap,
-      broadJump: dto.broadJump,
-      threeCone: dto.threeCone,
-      twentyYardShuttle: dto.twentyYardShuttle,
-      benchPress: dto.benchPress,
-      drafted: dto.drafted,
+      drafted: dto.draftStatus === 'DRAFTED' || dto.drafted === true,
+      draftStatus: dto.draftStatus ?? (dto.drafted ? 'DRAFTED' : 'PRE_DRAFT'),
       draftYear: dto.draftYear,
       teamId: dto.teamId,
       draftPickId: dto.draftPickId,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-
-    const savedProspect = await this.prospectRepository.save(prospect);
-    return this.toResponseDto(savedProspect);
+    return this.toResponseDto(await this.prospectRepository.save(prospect));
   }
 
   async getProspectById(id: number): Promise<ProspectResponseDto> {
     const prospect = await this.prospectRepository.findById(id);
-    if (!prospect) {
-      throw new NotFoundError('Prospect', id);
-    }
-    return this.toResponseDto(prospect);
+    if (!prospect) throw new NotFoundError('Prospect', id);
+    const combine = await this.combineScoreRepository.findByProspectId(id);
+    return this.toResponseDto(prospect, combine ?? undefined);
   }
 
-  async getAllProspects(
-    filters?: ProspectFiltersDto,
-    pagination?: PaginationParams
-  ): Promise<PaginatedResponse<ProspectResponseDto>> {
-    const result = await this.prospectRepository.findAll(filters, pagination);
-    return {
-      data: result.data.map((prospect) => this.toResponseDto(prospect)),
-      pagination: result.pagination,
-    };
+  async getAllProspects(filters?: ProspectFiltersDto, pagination?: PaginationParams): Promise<PaginatedResponse<ProspectResponseDto>> {
+    return this.toPaginatedResponse(await this.prospectRepository.findAll(filters, pagination));
   }
 
   async updateProspect(id: number, dto: UpdateProspectDto): Promise<ProspectResponseDto> {
-    const existingProspect = await this.prospectRepository.findById(id);
-    if (!existingProspect) {
-      throw new NotFoundError('Prospect', id);
-    }
+    const existing = await this.prospectRepository.findById(id);
+    if (!existing) throw new NotFoundError('Prospect', id);
+    const nextDraftStatus = dto.draftStatus ?? existing.draftStatus;
+    const nextTeamId = nextDraftStatus === 'PRE_DRAFT' ? undefined : (dto.teamId ?? existing.teamId);
+    const nextDraftPickId = nextDraftStatus === 'DRAFTED' ? (dto.draftPickId ?? existing.draftPickId) : undefined;
 
-    // Create updated prospect with merged data
-    const updatedProspect = Prospect.create({
-      id: existingProspect.id,
-      firstName: dto.firstName ?? existingProspect.firstName,
-      lastName: dto.lastName ?? existingProspect.lastName,
-      position: dto.position ?? existingProspect.position,
-      college: dto.college ?? existingProspect.college,
-      height: dto.height ?? existingProspect.height,
-      weight: dto.weight ?? existingProspect.weight,
-      handSize: dto.handSize ?? existingProspect.handSize,
-      armLength: dto.armLength ?? existingProspect.armLength,
-      homeCity: dto.homeCity ?? existingProspect.homeCity,
-      homeState: dto.homeState ?? existingProspect.homeState,
-      fortyTime: dto.fortyTime ?? existingProspect.fortyTime,
-      tenYardSplit: dto.tenYardSplit ?? existingProspect.tenYardSplit,
-      verticalLeap: dto.verticalLeap ?? existingProspect.verticalLeap,
-      broadJump: dto.broadJump ?? existingProspect.broadJump,
-      threeCone: dto.threeCone ?? existingProspect.threeCone,
-      twentyYardShuttle: dto.twentyYardShuttle ?? existingProspect.twentyYardShuttle,
-      benchPress: dto.benchPress ?? existingProspect.benchPress,
-      drafted: dto.drafted ?? existingProspect.drafted,
-      draftYear: dto.draftYear ?? existingProspect.draftYear,
-      teamId: dto.teamId ?? existingProspect.teamId,
-      draftPickId: dto.draftPickId ?? existingProspect.draftPickId,
-      createdAt: existingProspect.createdAt,
+    const updated = Prospect.create({
+      id: existing.id,
+      firstName: dto.firstName ?? existing.firstName,
+      lastName: dto.lastName ?? existing.lastName,
+      position: dto.position ?? existing.position,
+      college: dto.college ?? existing.college,
+      homeCity: dto.homeCity ?? existing.homeCity,
+      homeState: dto.homeState ?? existing.homeState,
+      drafted: nextDraftStatus === 'DRAFTED',
+      draftStatus: nextDraftStatus,
+      draftYear: dto.draftYear ?? existing.draftYear,
+      teamId: nextTeamId,
+      draftPickId: nextDraftPickId,
+      createdAt: existing.createdAt,
       updatedAt: new Date(),
     });
-
-    const savedProspect = await this.prospectRepository.update(id, updatedProspect);
-    return this.toResponseDto(savedProspect);
+    const saved = await this.prospectRepository.update(id, updated);
+    const combine = await this.combineScoreRepository.findByProspectId(id);
+    return this.toResponseDto(saved, combine ?? undefined);
   }
 
   async deleteProspect(id: number): Promise<void> {
     const prospect = await this.prospectRepository.findById(id);
-    if (!prospect) {
-      throw new NotFoundError('Prospect', id);
-    }
-
-    // Check if prospect is already drafted - might want to prevent deletion
-    if (prospect.drafted) {
-      throw new ConflictError('Cannot delete a drafted prospect');
-    }
-
+    if (!prospect) throw new NotFoundError('Prospect', id);
+    if (prospect.draftStatus !== 'PRE_DRAFT') throw new ConflictError('Cannot delete a prospect after the draft lifecycle has completed');
     await this.prospectRepository.delete(id);
   }
 
-  async prospectExists(id: number): Promise<boolean> {
-    return this.prospectRepository.exists(id);
-  }
+  async prospectExists(id: number): Promise<boolean> { return this.prospectRepository.exists(id); }
 
   async getProspectsByPosition(position: string, pagination?: PaginationParams): Promise<PaginatedResponse<ProspectResponseDto>> {
-    const result = await this.prospectRepository.findByPosition(position, pagination);
-    return {
-      data: result.data.map((prospect) => this.toResponseDto(prospect)),
-      pagination: result.pagination,
-    };
+    return this.toPaginatedResponse(await this.prospectRepository.findByPosition(position, pagination));
   }
 
   async getProspectsByCollege(college: string, pagination?: PaginationParams): Promise<PaginatedResponse<ProspectResponseDto>> {
-    const result = await this.prospectRepository.findByCollege(college, pagination);
-    return {
-      data: result.data.map((prospect) => this.toResponseDto(prospect)),
-      pagination: result.pagination,
-    };
+    return this.toPaginatedResponse(await this.prospectRepository.findByCollege(college, pagination));
   }
 
   async getUndraftedProspects(pagination?: PaginationParams): Promise<PaginatedResponse<ProspectResponseDto>> {
-    const result = await this.prospectRepository.findUndrafted(pagination);
-    return {
-      data: result.data.map((prospect) => this.toResponseDto(prospect)),
-      pagination: result.pagination,
-    };
+    return this.toPaginatedResponse(await this.prospectRepository.findUndrafted(pagination));
   }
 
   async getDraftedProspects(draftYear?: number, pagination?: PaginationParams): Promise<PaginatedResponse<ProspectResponseDto>> {
-    const result = await this.prospectRepository.findDrafted(draftYear, pagination);
-    return {
-      data: result.data.map((prospect) => this.toResponseDto(prospect)),
-      pagination: result.pagination,
-    };
+    return this.toPaginatedResponse(await this.prospectRepository.findDrafted(draftYear, pagination));
   }
 
   async getProspectsByTeam(teamId: number, pagination?: PaginationParams): Promise<PaginatedResponse<ProspectResponseDto>> {
-    const result = await this.prospectRepository.findByTeam(teamId, pagination);
-    return {
-      data: result.data.map((prospect) => this.toResponseDto(prospect)),
-      pagination: result.pagination,
-    };
+    return this.toPaginatedResponse(await this.prospectRepository.findByTeam(teamId, pagination));
   }
 
   async updatePersonalInfo(id: number, dto: UpdatePersonalInfoDto): Promise<ProspectResponseDto> {
     const prospect = await this.prospectRepository.findById(id);
-    if (!prospect) {
-      throw new NotFoundError('Prospect', id);
-    }
-
-    prospect.updatePersonalInfo(
-      dto.firstName,
-      dto.lastName,
-      dto.homeCity,
-      dto.homeState
-    );
-
-    const updatedProspect = await this.prospectRepository.update(id, prospect);
-    return this.toResponseDto(updatedProspect);
+    if (!prospect) throw new NotFoundError('Prospect', id);
+    prospect.updatePersonalInfo(dto.firstName, dto.lastName, dto.homeCity, dto.homeState);
+    const saved = await this.prospectRepository.update(id, prospect);
+    const combine = await this.combineScoreRepository.findByProspectId(id);
+    return this.toResponseDto(saved, combine ?? undefined);
   }
 
+  // Backward-compatible Prospect endpoint; CombineScore is now the only persistence target.
   async updateCombineScores(id: number, dto: UpdateCombineScoresDto): Promise<ProspectResponseDto> {
     const prospect = await this.prospectRepository.findById(id);
-    if (!prospect) {
-      throw new NotFoundError('Prospect', id);
-    }
-
-    prospect.updateCombineScores({
-      fortyTime: dto.fortyTime,
-      tenYardSplit: dto.tenYardSplit,
-      verticalLeap: dto.verticalLeap,
-      broadJump: dto.broadJump,
-      threeCone: dto.threeCone,
-      twentyYardShuttle: dto.twentyYardShuttle,
-      benchPress: dto.benchPress,
+    if (!prospect) throw new NotFoundError('Prospect', id);
+    const existing = await this.combineScoreRepository.findByProspectId(id);
+    const combined = CombineScore.create({
+      id: existing?.id,
+      playerId: existing?.playerId,
+      prospectId: id,
+      height: dto.height ?? existing?.height,
+      weight: dto.weight ?? existing?.weight,
+      handSize: dto.handSize ?? existing?.handSize,
+      armLength: dto.armLength ?? existing?.armLength,
+      fortyTime: dto.fortyTime ?? existing?.fortyTime,
+      tenYardSplit: dto.tenYardSplit ?? existing?.tenYardSplit,
+      verticalLeap: dto.verticalLeap ?? existing?.verticalLeap,
+      broadJump: dto.broadJump ?? existing?.broadJump,
+      threeCone: dto.threeCone ?? existing?.threeCone,
+      twentyYardShuttle: dto.twentyYardShuttle ?? existing?.twentyYardShuttle,
+      benchPress: dto.benchPress ?? existing?.benchPress,
     });
-
-    const updatedProspect = await this.prospectRepository.update(id, prospect);
-    return this.toResponseDto(updatedProspect);
+    const savedCombine = existing?.id
+      ? await this.combineScoreRepository.update(existing.id, combined)
+      : await this.combineScoreRepository.save(combined);
+    return this.toResponseDto(prospect, savedCombine);
   }
 
   async markAsDrafted(id: number, dto: MarkAsDraftedDto): Promise<ProspectResponseDto> {
     const prospect = await this.prospectRepository.findById(id);
-    if (!prospect) {
-      throw new NotFoundError('Prospect', id);
-    }
-
+    if (!prospect) throw new NotFoundError('Prospect', id);
     prospect.markAsDrafted(dto.teamId, dto.draftYear, dto.draftPickId);
-
-    const updatedProspect = await this.prospectRepository.update(id, prospect);
-    return this.toResponseDto(updatedProspect);
+    const saved = await this.prospectRepository.update(id, prospect);
+    const combine = await this.combineScoreRepository.findByProspectId(id);
+    return this.toResponseDto(saved, combine ?? undefined);
   }
 
   async markAsUndrafted(id: number): Promise<ProspectResponseDto> {
     const prospect = await this.prospectRepository.findById(id);
-    if (!prospect) {
-      throw new NotFoundError('Prospect', id);
-    }
-
+    if (!prospect) throw new NotFoundError('Prospect', id);
     prospect.markAsUndrafted();
-
-    const updatedProspect = await this.prospectRepository.update(id, prospect);
-    return this.toResponseDto(updatedProspect);
+    const saved = await this.prospectRepository.update(id, prospect);
+    const combine = await this.combineScoreRepository.findByProspectId(id);
+    return this.toResponseDto(saved, combine ?? undefined);
   }
 
   async getTopAthletes(limit: number = 10): Promise<TopAthletesResponseDto> {
     const prospects = await this.prospectRepository.findTopAthletes(limit);
-    
+    const combines = await this.combineScoreRepository.findByProspectIds(prospects.flatMap((p) => p.id ? [p.id] : []));
+    const byProspectId = new Map(combines.flatMap((score) => score.prospectId ? [[score.prospectId, score] as const] : []));
     return {
-      prospects: prospects.map((prospect) => this.toResponseDto(prospect)),
+      prospects: prospects.map((prospect) => this.toResponseDto(prospect, prospect.id ? byProspectId.get(prospect.id) : undefined)),
       limit,
-      criteria: 'Based on 40-yard dash, vertical leap, and bench press scores',
+      criteria: 'Based on canonical CombineScore athletic testing',
     };
   }
 
-  async getProspectsByCombineScore(
-    filters: CombineScoreFilterDto,
-    pagination?: PaginationParams
-  ): Promise<PaginatedResponse<ProspectResponseDto>> {
+  async getProspectsByCombineScore(filters: CombineScoreFilterDto, pagination?: PaginationParams): Promise<PaginatedResponse<ProspectResponseDto>> {
     const result = await this.prospectRepository.findByCombineScore(
-      filters.minFortyTime,
-      filters.maxFortyTime,
-      filters.minVerticalLeap,
-      filters.maxVerticalLeap,
-      pagination
+      filters.minFortyTime, filters.maxFortyTime, filters.minVerticalLeap, filters.maxVerticalLeap, pagination
     );
-
-    return {
-      data: result.data.map((prospect) => this.toResponseDto(prospect)),
-      pagination: result.pagination,
-    };
+    return this.toPaginatedResponse(result);
   }
 
   async getProspectStats(): Promise<ProspectStatsDto> {
-    const [
-      allProspects,
-      draftedProspects,
-      undraftedProspects,
-      positionBreakdown,
-      collegeBreakdown,
-    ] = await Promise.all([
-      this.prospectRepository.findAll(),
-      this.prospectRepository.findDrafted(),
-      this.prospectRepository.findUndrafted(),
+    const [allProspects, draftedProspects, undraftedProspects, udfaProspects, positionBreakdown, collegeBreakdown, averages] = await Promise.all([
+      this.prospectRepository.findAll({}, { page: 1, limit: 100 }),
+      this.prospectRepository.findDrafted(undefined, { page: 1, limit: 1 }),
+      this.prospectRepository.findUndrafted({ page: 1, limit: 1 }),
+      this.prospectRepository.findAll({ draftStatus: 'UDFA' }, { page: 1, limit: 1 }),
       this.prospectRepository.countByPosition(),
       this.prospectRepository.countByCollege(),
+      this.combineScoreRepository.getMeasurementAverages(),
     ]);
-
-    const prospects = allProspects.data;
-    const totalProspects = prospects.length;
-
-    // Calculate averages
-    const averageHeight = prospects.reduce((sum, p) => sum + (p.height || 0), 0) / totalProspects;
-    const averageWeight = prospects.reduce((sum, p) => sum + (p.weight || 0), 0) / totalProspects;
-
-    const prospectsWithFortyTime = prospects.filter(p => p.fortyTime);
-    const averageFortyTime = prospectsWithFortyTime.length > 0
-      ? prospectsWithFortyTime.reduce((sum, p) => sum + (p.fortyTime || 0), 0) / prospectsWithFortyTime.length
-      : undefined;
-
-    const prospectsWithVerticalLeap = prospects.filter(p => p.verticalLeap);
-    const averageVerticalLeap = prospectsWithVerticalLeap.length > 0
-      ? prospectsWithVerticalLeap.reduce((sum, p) => sum + (p.verticalLeap || 0), 0) / prospectsWithVerticalLeap.length
-      : undefined;
-
-    const prospectsWithBenchPress = prospects.filter(p => p.benchPress !== undefined);
-    const averageBenchPress = prospectsWithBenchPress.length > 0
-      ? prospectsWithBenchPress.reduce((sum, p) => sum + (p.benchPress || 0), 0) / prospectsWithBenchPress.length
-      : undefined;
-
+    const rounded = (value?: number): number | undefined => value === undefined ? undefined : Math.round(value * 100) / 100;
     return {
-      totalProspects,
-      draftedCount: draftedProspects.data.length,
-      undraftedCount: undraftedProspects.data.length,
+      totalProspects: allProspects.pagination.total,
+      draftedCount: draftedProspects.pagination.total,
+      undraftedCount: undraftedProspects.pagination.total,
+      udfaCount: udfaProspects.pagination.total,
       positionBreakdown,
-      collegeBreakdown: collegeBreakdown.slice(0, 20), // Top 20 colleges
-      averageHeight: Math.round(averageHeight * 100) / 100,
-      averageWeight: Math.round(averageWeight * 100) / 100,
-      averageFortyTime: averageFortyTime ? Math.round(averageFortyTime * 100) / 100 : undefined,
-      averageVerticalLeap: averageVerticalLeap ? Math.round(averageVerticalLeap * 100) / 100 : undefined,
-      averageBenchPress: averageBenchPress ? Math.round(averageBenchPress * 100) / 100 : undefined,
+      collegeBreakdown: collegeBreakdown.slice(0, 20),
+      averageHeight: rounded(averages.height),
+      averageWeight: rounded(averages.weight),
+      averageFortyTime: rounded(averages.fortyTime),
+      averageVerticalLeap: rounded(averages.verticalLeap),
+      averageBenchPress: rounded(averages.benchPress),
     };
   }
 
   async findDuplicateProspects(): Promise<ProspectResponseDto[]> {
     const duplicates = await this.prospectRepository.findDuplicates();
-    return duplicates.map((prospect) => this.toResponseDto(prospect));
+    const combines = await this.combineScoreRepository.findByProspectIds(duplicates.flatMap((p) => p.id ? [p.id] : []));
+    const byProspectId = new Map(combines.flatMap((score) => score.prospectId ? [[score.prospectId, score] as const] : []));
+    return duplicates.map((prospect) => this.toResponseDto(prospect, prospect.id ? byProspectId.get(prospect.id) : undefined));
   }
 
-  private toResponseDto(prospect: Prospect): ProspectResponseDto {
+  private async toPaginatedResponse(result: PaginatedResponse<Prospect>): Promise<PaginatedResponse<ProspectResponseDto>> {
+    const ids = result.data.flatMap((prospect) => prospect.id ? [prospect.id] : []);
+    const combines = await this.combineScoreRepository.findByProspectIds(ids);
+    const byProspectId = new Map(combines.flatMap((score) => score.prospectId ? [[score.prospectId, score] as const] : []));
+    return {
+      data: result.data.map((prospect) => this.toResponseDto(prospect, prospect.id ? byProspectId.get(prospect.id) : undefined)),
+      pagination: result.pagination,
+    };
+  }
+
+  private toResponseDto(prospect: Prospect, combine?: CombineScore): ProspectResponseDto {
     return {
       id: prospect.id!,
       firstName: prospect.firstName,
@@ -331,27 +237,17 @@ export class ProspectService {
       fullName: prospect.getFullName(),
       position: prospect.position,
       college: prospect.college,
-      height: prospect.height,
-      weight: prospect.weight,
-      handSize: prospect.handSize,
-      armLength: prospect.armLength,
       homeCity: prospect.homeCity,
       homeState: prospect.homeState,
-      fortyTime: prospect.fortyTime,
-      tenYardSplit: prospect.tenYardSplit,
-      verticalLeap: prospect.verticalLeap,
-      broadJump: prospect.broadJump,
-      threeCone: prospect.threeCone,
-      twentyYardShuttle: prospect.twentyYardShuttle,
-      benchPress: prospect.benchPress,
-      drafted: prospect.drafted,
+      drafted: prospect.draftStatus === 'DRAFTED',
+      draftStatus: prospect.draftStatus,
       draftYear: prospect.draftYear,
       teamId: prospect.teamId,
       draftPickId: prospect.draftPickId,
-      hasCompleteCombineScores: prospect.hasCompleteCombineScores(),
-      athleteScore: prospect.getAthleteScore(),
-      createdAt: prospect.createdAt!,
-      updatedAt: prospect.updatedAt!,
+      hasCompleteCombineScores: combine?.isCompleteWorkout() ?? false,
+      athleteScore: combine?.getOverallAthleticScore() ?? 0,
+      createdAt: prospect.createdAt ?? new Date(),
+      updatedAt: prospect.updatedAt ?? new Date(),
     };
   }
 }

@@ -9,7 +9,7 @@ export class ProspectRepository {
   async findAvailable(draftYear: number): Promise<Prospect[]> {
     const prospects = await this.prisma.prospect.findMany({
       where: {
-        drafted: false,
+        draftStatus: 'PRE_DRAFT',
         ...(draftYear && { draftYear })
       },
       orderBy: [
@@ -37,7 +37,8 @@ export class ProspectRepository {
     await this.prisma.prospect.update({
       where: { id },
       data: {
-        drafted: data.drafted,
+        drafted: data.draftStatus === 'DRAFTED',
+        draftStatus: data.draftStatus,
         draftPickId: data.draftPickId,
         teamId: data.teamId,
         updatedAt: new Date()
@@ -49,7 +50,7 @@ export class ProspectRepository {
     const prospects = await this.prisma.prospect.findMany({
       where: {
         position,
-        drafted
+        draftStatus: drafted ? 'DRAFTED' : 'PRE_DRAFT'
       },
       orderBy: { lastName: 'asc' }
     })
@@ -64,24 +65,14 @@ export class ProspectRepository {
         lastName: prospect.lastName,
         position: prospect.position,
         college: prospect.college,
-        height: (prospect.height === undefined ? 0 : prospect.height),
-        weight: (prospect.weight === undefined ? 0 : prospect.weight),
-        handSize: prospect.handSize,
-        armLength: prospect.armLength,
         homeCity: prospect.homeCity,
         homeState: prospect.homeState,
-        fortyTime: prospect.fortyTime,
-        tenYardSplit: prospect.tenYardSplit,
-        verticalLeap: prospect.verticalLeap,
-        broadJump: prospect.broadJump,
-        threeCone: prospect.threeCone,
-        twentyYardShuttle: prospect.twentyYardShuttle,
-        benchPress: prospect.benchPress,
-        drafted: prospect.drafted || false,
+        drafted: prospect.draftStatus === 'DRAFTED',
+        draftStatus: prospect.draftStatus,
         draftYear: prospect.draftYear
       }
     })
-
     return Prospect.fromDatabase(created)
   }
+
 }

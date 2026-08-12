@@ -14,17 +14,25 @@ model AppSetting {
 }
 
 model CombineScore {
-  id                Int     @id @default(autoincrement())
-  fortyTime         Float?  @db.Float
-  tenYardSplit      Float?  @db.Float
-  twentyYardShuttle Float?  @db.Float
-  threeCone         Float?  @db.Float
-  verticalLeap      Float?  @db.Float
+  id                Int       @id @default(autoincrement())
   playerId          Int?
-  broadJump         Float?  @db.Float
-  Player            Player? @relation(fields: [playerId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_Combine_Score_1")
+  prospectId        Int?
+  height            Float?    @db.Float
+  weight            Float?    @db.Float
+  handSize          Float?    @db.Float
+  armLength         Float?    @db.Float
+  fortyTime         Float?    @db.Float
+  tenYardSplit      Float?    @db.Float
+  twentyYardShuttle Float?    @db.Float
+  threeCone         Float?    @db.Float
+  verticalLeap      Float?    @db.Float
+  broadJump         Float?    @db.Float
+  benchPress        Int?
+  Player            Player?   @relation(fields: [playerId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_Combine_Score_1")
+  Prospect          Prospect? @relation(fields: [prospectId], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_CombineScore_Prospect")
 
   @@index([playerId], map: "fk_Combine_Score_1_idx")
+  @@unique([prospectId], map: "uq_CombineScore_prospectId")
 }
 
 model DraftPick {
@@ -194,20 +202,10 @@ model Prospect {
   lastName                                  String                      @db.VarChar(45)
   position                                  String                      @db.VarChar(10)
   college                                   String                      @db.VarChar(75)
-  height                                    Float                       @db.Float
-  weight                                    Float                       @db.Float
-  handSize                                  Float?                      @db.Float
-  armLength                                 Float?                      @db.Float
   homeCity                                  String?                     @db.VarChar(45)
   homeState                                 String?                     @db.VarChar(45)
-  fortyTime                                 Float?                      @db.Float
-  tenYardSplit                              Float?                      @db.Float
-  verticalLeap                              Float?                      @db.Float
-  broadJump                                 Float?                      @db.Float
-  threeCone                                 Float?                      @db.Float
-  twentyYardShuttle                         Float?                      @db.Float
-  benchPress                                Int?
-  drafted                                   Boolean                     @default(false)
+  drafted                                   Boolean                     @default(false) // compatibility: true only when draftStatus = DRAFTED
+  draftStatus                               ProspectDraftStatus          @default(PRE_DRAFT)
   draftYear                                 Int?                        @db.Year
   teamId                                    Int?
   draftPickId                               Int?
@@ -223,11 +221,13 @@ model Prospect {
   DraftPick_Prospect_draftPickIdToDraftPick DraftPick?                  @relation("Prospect_draftPickIdToDraftPick", fields: [draftPickId], references: [id], map: "fk_Prospect_DraftPick")
   Team                                      Team?                       @relation(fields: [teamId], references: [id], map: "fk_Prospect_Team")
   ProspectRanking                           ProspectRanking[]
+  CombineScore                              CombineScore?
 
   @@index([draftPickId], map: "fk_Prospect_DraftPick")
   @@index([teamId], map: "fk_Prospect_Team_idx")
   @@index([college], map: "idx_prospect_college")
   @@index([drafted], map: "idx_prospect_drafted")
+  @@index([draftStatus], map: "idx_prospect_draft_status")
   @@index([lastName, firstName], map: "idx_prospect_name")
   @@index([position], map: "idx_prospect_position")
 }
@@ -1807,6 +1807,12 @@ enum data_processing_jobs_status {
 enum data_quality_reports_entity_type {
   PLAYER
   TEAM
+}
+
+enum ProspectDraftStatus {
+  PRE_DRAFT
+  DRAFTED
+  UDFA
 }
 
 enum workflow_executions_status {

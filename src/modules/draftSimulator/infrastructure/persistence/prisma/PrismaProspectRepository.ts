@@ -42,7 +42,7 @@ function buildProspectWhere(draftYear: number, filters: ProspectFilters): Prisma
   }
 
   return {
-    drafted: false,
+    draftStatus: 'PRE_DRAFT',
     AND: and
   }
 }
