@@ -1,3 +1,5 @@
+// DraftProAnalytics™ | Copyright © 2025-2026 Darryl Thompson. All rights reserved.
+// See LICENSE and TRADEMARKS.md.
 import path from 'node:path';
 import dotenv from 'dotenv';
 import { createDpaJobsNflImportRouter } from './modules/jobs/presentation/routes/dpaJobsNflImport.routes';

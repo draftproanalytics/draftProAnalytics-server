@@ -6,10 +6,15 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: false,
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+    ]
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
+
 })

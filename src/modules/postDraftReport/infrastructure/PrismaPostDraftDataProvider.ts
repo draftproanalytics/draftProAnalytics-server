@@ -11,17 +11,17 @@ function median(values: number[]): number | null {
   return ordered.length % 2 === 0 ? (ordered[middle - 1] + ordered[middle]) / 2 : ordered[middle];
 }
 
-function athleticScore(prospect: {
+function athleticScore(combine: {
   fortyTime: number | null; verticalLeap: number | null; broadJump: number | null;
   threeCone: number | null; twentyYardShuttle: number | null;
 } | null): number | null {
-  if (prospect === null) return null;
+  if (combine === null) return null;
   const scores: number[] = [];
-  if (prospect.fortyTime !== null) scores.push(Math.max(0, Math.min(100, ((5.2 - prospect.fortyTime) / 1.0) * 100)));
-  if (prospect.verticalLeap !== null) scores.push(Math.max(0, Math.min(100, ((prospect.verticalLeap - 25) / 20) * 100)));
-  if (prospect.broadJump !== null) scores.push(Math.max(0, Math.min(100, ((prospect.broadJump - 95) / 45) * 100)));
-  if (prospect.threeCone !== null) scores.push(Math.max(0, Math.min(100, ((8.0 - prospect.threeCone) / 1.5) * 100)));
-  if (prospect.twentyYardShuttle !== null) scores.push(Math.max(0, Math.min(100, ((5.0 - prospect.twentyYardShuttle) / 1.2) * 100)));
+  if (combine.fortyTime !== null) scores.push(Math.max(0, Math.min(100, ((5.2 - combine.fortyTime) / 1.0) * 100)));
+  if (combine.verticalLeap !== null) scores.push(Math.max(0, Math.min(100, ((combine.verticalLeap - 25) / 20) * 100)));
+  if (combine.broadJump !== null) scores.push(Math.max(0, Math.min(100, ((combine.broadJump - 95) / 45) * 100)));
+  if (combine.threeCone !== null) scores.push(Math.max(0, Math.min(100, ((8.0 - combine.threeCone) / 1.5) * 100)));
+  if (combine.twentyYardShuttle !== null) scores.push(Math.max(0, Math.min(100, ((5.0 - combine.twentyYardShuttle) / 1.2) * 100)));
   return scores.length === 0 ? null : Number((scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(2));
 }
 
@@ -43,7 +43,7 @@ export class PrismaPostDraftDataProvider implements IPostDraftDataProvider {
         Prospect_DraftPick_prospectIdToProspect: {
           select: {
             id: true, firstName: true, lastName: true, position: true, college: true,
-            fortyTime: true, verticalLeap: true, broadJump: true, threeCone: true, twentyYardShuttle: true,
+            CombineScore: { select: { fortyTime: true, verticalLeap: true, broadJump: true, threeCone: true, twentyYardShuttle: true } },
             ProspectRanking: { select: { overallRank: true, source: true } },
             B4MeWRMetrics: true
           }
@@ -68,7 +68,7 @@ export class PrismaPostDraftDataProvider implements IPostDraftDataProvider {
       const playerName = prospect
         ? `${prospect.firstName} ${prospect.lastName}`.trim()
         : `${row.playerFirstName ?? ''} ${row.playerLastName ?? ''}`.trim() || 'Unknown Player';
-      const aScore = athleticScore(prospect ?? null);
+      const aScore = athleticScore(prospect?.CombineScore ?? null);
       const consensusRank = median(rankingValues);
       const b4meScore = decimal(b4me?.finalB4MeScore);
       const wr = prospect?.B4MeWRMetrics;

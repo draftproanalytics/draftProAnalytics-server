@@ -1,4 +1,3 @@
-// src/application/combineScore/services/CombineScoreService.ts
 import { ICombineScoreRepository } from '@/domain/combineScore/repositories/ICombineScoreRepository';
 import { CombineScore } from '@/domain/combineScore/entities/CombineScore';
 import { NotFoundError, ConflictError } from '@/shared/errors/AppError';
@@ -8,6 +7,8 @@ import {
   UpdateCombineScoreDto,
   CombineScoreFiltersDto,
   CombineScoreResponseDto,
+  CombineScoreWorkspaceFiltersDto,
+  CombineScoreWorkspaceItemDto,
   TopPerformersDto,
   AthleticScoreRangeDto,
 } from '../dto/CombineScoreDto';
@@ -16,164 +17,134 @@ export class CombineScoreService {
   constructor(private readonly combineScoreRepository: ICombineScoreRepository) {}
 
   async createCombineScore(dto: CreateCombineScoreDto): Promise<CombineScoreResponseDto> {
-    // Business logic: Check if player already has combine scores
     if (dto.playerId) {
-      const existingCombineScore = await this.combineScoreRepository.findByPlayerId(dto.playerId);
-      if (existingCombineScore) {
-        throw new ConflictError(`Player ${dto.playerId} already has combine scores recorded`);
-      }
+      const existing = await this.combineScoreRepository.findByPlayerId(dto.playerId);
+      if (existing) throw new ConflictError(`Player ${dto.playerId} already has combine scores recorded`);
+    }
+    if (dto.prospectId) {
+      const existing = await this.combineScoreRepository.findByProspectId(dto.prospectId);
+      if (existing) throw new ConflictError(`Prospect ${dto.prospectId} already has combine measurements recorded`);
     }
 
-    const combineScore = CombineScore.create({
-      playerId: dto.playerId,
-      fortyTime: dto.fortyTime,
-      tenYardSplit: dto.tenYardSplit,
-      twentyYardShuttle: dto.twentyYardShuttle,
-      threeCone: dto.threeCone,
-      verticalLeap: dto.verticalLeap,
-      broadJump: dto.broadJump,
-    });
-
-    const savedCombineScore = await this.combineScoreRepository.save(combineScore);
-    return this.toResponseDto(savedCombineScore);
+    const saved = await this.combineScoreRepository.save(CombineScore.create(dto));
+    return this.toResponseDto(saved);
   }
 
   async getCombineScoreById(id: number): Promise<CombineScoreResponseDto> {
-    const combineScore = await this.combineScoreRepository.findById(id);
-    if (!combineScore) {
-      throw new NotFoundError('CombineScore', id);
-    }
-    return this.toResponseDto(combineScore);
+    const score = await this.combineScoreRepository.findById(id);
+    if (!score) throw new NotFoundError('CombineScore', id);
+    return this.toResponseDto(score);
   }
 
-  async getAllCombineScores(
-    filters?: CombineScoreFiltersDto,
-    pagination?: PaginationParams
-  ): Promise<PaginatedResponse<CombineScoreResponseDto>> {
+  async getAllCombineScores(filters?: CombineScoreFiltersDto, pagination?: PaginationParams): Promise<PaginatedResponse<CombineScoreResponseDto>> {
     const result = await this.combineScoreRepository.findAll(filters, pagination);
+    return { data: result.data.map((score) => this.toResponseDto(score)), pagination: result.pagination };
+  }
+
+  async getWorkspace(
+    filters?: CombineScoreWorkspaceFiltersDto,
+    pagination?: PaginationParams,
+  ): Promise<PaginatedResponse<CombineScoreWorkspaceItemDto>> {
+    const result = await this.combineScoreRepository.findWorkspace(filters, pagination);
     return {
-      data: result.data.map((combineScore) => this.toResponseDto(combineScore)),
+      data: result.data.map(({ prospect, score }) => ({
+        prospect: { ...prospect, fullName: `${prospect.firstName} ${prospect.lastName}` },
+        combineScore: score ? this.toResponseDto(score) : undefined,
+        combineStatus: !score ? 'MISSING' : score.isCompleteWorkout() ? 'COMPLETE' : 'PARTIAL',
+      })),
       pagination: result.pagination,
     };
   }
 
   async updateCombineScore(id: number, dto: UpdateCombineScoreDto): Promise<CombineScoreResponseDto> {
-    const existingCombineScore = await this.combineScoreRepository.findById(id);
-    if (!existingCombineScore) {
-      throw new NotFoundError('CombineScore', id);
+    const existing = await this.combineScoreRepository.findById(id);
+    if (!existing) throw new NotFoundError('CombineScore', id);
+
+    if (dto.playerId && dto.playerId !== existing.playerId) {
+      const conflict = await this.combineScoreRepository.findByPlayerId(dto.playerId);
+      if (conflict && conflict.id !== id) throw new ConflictError(`Player ${dto.playerId} already has combine scores recorded`);
+    }
+    if (dto.prospectId && dto.prospectId !== existing.prospectId) {
+      const conflict = await this.combineScoreRepository.findByProspectId(dto.prospectId);
+      if (conflict && conflict.id !== id) throw new ConflictError(`Prospect ${dto.prospectId} already has combine measurements recorded`);
     }
 
-    // Business logic: If updating playerId, check for conflicts
-    if (dto.playerId && dto.playerId !== existingCombineScore.playerId) {
-      const conflictingCombineScore = await this.combineScoreRepository.findByPlayerId(dto.playerId);
-      if (conflictingCombineScore && conflictingCombineScore.id !== id) {
-        throw new ConflictError(`Player ${dto.playerId} already has combine scores recorded`);
-      }
-    }
-
-    // Apply updates to the entity
-    const updatedProps = {
-      id: existingCombineScore.id,
-      playerId: dto.playerId ?? existingCombineScore.playerId,
-      fortyTime: dto.fortyTime ?? existingCombineScore.fortyTime,
-      tenYardSplit: dto.tenYardSplit ?? existingCombineScore.tenYardSplit,
-      twentyYardShuttle: dto.twentyYardShuttle ?? existingCombineScore.twentyYardShuttle,
-      threeCone: dto.threeCone ?? existingCombineScore.threeCone,
-      verticalLeap: dto.verticalLeap ?? existingCombineScore.verticalLeap,
-      broadJump: dto.broadJump ?? existingCombineScore.broadJump,
-    };
-
-    const updatedCombineScore = CombineScore.create(updatedProps);
-    const savedCombineScore = await this.combineScoreRepository.update(id, updatedCombineScore);
-    return this.toResponseDto(savedCombineScore);
+    const updated = CombineScore.create({
+      id: existing.id,
+      playerId: dto.playerId ?? existing.playerId,
+      prospectId: dto.prospectId ?? existing.prospectId,
+      height: dto.height ?? existing.height,
+      weight: dto.weight ?? existing.weight,
+      handSize: dto.handSize ?? existing.handSize,
+      armLength: dto.armLength ?? existing.armLength,
+      fortyTime: dto.fortyTime ?? existing.fortyTime,
+      tenYardSplit: dto.tenYardSplit ?? existing.tenYardSplit,
+      twentyYardShuttle: dto.twentyYardShuttle ?? existing.twentyYardShuttle,
+      threeCone: dto.threeCone ?? existing.threeCone,
+      verticalLeap: dto.verticalLeap ?? existing.verticalLeap,
+      broadJump: dto.broadJump ?? existing.broadJump,
+      benchPress: dto.benchPress ?? existing.benchPress,
+    });
+    return this.toResponseDto(await this.combineScoreRepository.update(id, updated));
   }
 
   async deleteCombineScore(id: number): Promise<void> {
-    const combineScore = await this.combineScoreRepository.findById(id);
-    if (!combineScore) {
-      throw new NotFoundError('CombineScore', id);
-    }
-
+    if (!(await this.combineScoreRepository.findById(id))) throw new NotFoundError('CombineScore', id);
     await this.combineScoreRepository.delete(id);
   }
 
-  async combineScoreExists(id: number): Promise<boolean> {
-    return this.combineScoreRepository.exists(id);
-  }
+  async combineScoreExists(id: number): Promise<boolean> { return this.combineScoreRepository.exists(id); }
 
   async getCombineScoreByPlayerId(playerId: number): Promise<CombineScoreResponseDto | null> {
-    const combineScore = await this.combineScoreRepository.findByPlayerId(playerId);
-    return combineScore ? this.toResponseDto(combineScore) : null;
+    const score = await this.combineScoreRepository.findByPlayerId(playerId);
+    return score ? this.toResponseDto(score) : null;
+  }
+
+  async getCombineScoreByProspectId(prospectId: number): Promise<CombineScoreResponseDto | null> {
+    const score = await this.combineScoreRepository.findByProspectId(prospectId);
+    return score ? this.toResponseDto(score) : null;
   }
 
   async getCombineScoresByPlayerIds(playerIds: number[]): Promise<CombineScoreResponseDto[]> {
-    const combineScores = await this.combineScoreRepository.findByPlayerIds(playerIds);
-    return combineScores.map((combineScore) => this.toResponseDto(combineScore));
+    return (await this.combineScoreRepository.findByPlayerIds(playerIds)).map((score) => this.toResponseDto(score));
   }
 
   async getTopPerformers(dto: TopPerformersDto): Promise<CombineScoreResponseDto[]> {
-    const combineScores = await this.combineScoreRepository.findTopPerformers(dto.metric, dto.limit);
-    return combineScores.map((combineScore) => this.toResponseDto(combineScore));
+    return (await this.combineScoreRepository.findTopPerformers(dto.metric, dto.limit)).map((score) => this.toResponseDto(score));
   }
 
   async getCombineScoresByAthleticScore(dto: AthleticScoreRangeDto): Promise<CombineScoreResponseDto[]> {
-    const combineScores = await this.combineScoreRepository.findByAthleticScoreRange(dto.minScore, dto.maxScore);
-    return combineScores.map((combineScore) => this.toResponseDto(combineScore));
+    return (await this.combineScoreRepository.findByAthleticScoreRange(dto.minScore, dto.maxScore)).map((score) => this.toResponseDto(score));
   }
 
   async getAthleticRankings(): Promise<CombineScoreResponseDto[]> {
-    // Business logic: Get all combine scores and rank by overall athletic score
-    const allResults = await this.combineScoreRepository.findAll({}, { page: 1, limit: 1000 });
-    
-    return allResults.data
-      .map((combineScore) => this.toResponseDto(combineScore))
-      .sort((a, b) => b.overallAthleticScore - a.overallAthleticScore);
+    const all = await this.combineScoreRepository.findAll({}, { page: 1, limit: 1000 });
+    return all.data.map((score) => this.toResponseDto(score)).sort((a, b) => b.overallAthleticScore - a.overallAthleticScore);
   }
 
   async updateSpecificMetric(id: number, metric: string, value: number): Promise<CombineScoreResponseDto> {
-    const existingCombineScore = await this.combineScoreRepository.findById(id);
-    if (!existingCombineScore) {
-      throw new NotFoundError('CombineScore', id);
-    }
-
-    // Business logic: Update specific metric using domain methods
+    const score = await this.combineScoreRepository.findById(id);
+    if (!score) throw new NotFoundError('CombineScore', id);
     switch (metric) {
-      case 'fortyTime':
-        existingCombineScore.updateFortyTime(value);
-        break;
-      case 'tenYardSplit':
-        existingCombineScore.updateTenYardSplit(value);
-        break;
-      case 'verticalLeap':
-        existingCombineScore.updateVerticalLeap(value);
-        break;
-      case 'broadJump':
-        existingCombineScore.updateBroadJump(value);
-        break;
-      default:
-        throw new Error(`Invalid metric: ${metric}`);
+      case 'fortyTime': score.updateFortyTime(value); break;
+      case 'tenYardSplit': score.updateTenYardSplit(value); break;
+      case 'verticalLeap': score.updateVerticalLeap(value); break;
+      case 'broadJump': score.updateBroadJump(value); break;
+      default: throw new Error(`Invalid metric: ${metric}`);
     }
-
-    const savedCombineScore = await this.combineScoreRepository.update(id, existingCombineScore);
-    return this.toResponseDto(savedCombineScore);
+    return this.toResponseDto(await this.combineScoreRepository.update(id, score));
   }
 
-  private toResponseDto(combineScore: CombineScore): CombineScoreResponseDto {
+  private toResponseDto(score: CombineScore): CombineScoreResponseDto {
     return {
-      id: combineScore.id!,
-      playerId: combineScore.playerId,
-      fortyTime: combineScore.fortyTime,
-      tenYardSplit: combineScore.tenYardSplit,
-      twentyYardShuttle: combineScore.twentyYardShuttle,
-      threeCone: combineScore.threeCone,
-      verticalLeap: combineScore.verticalLeap,
-      broadJump: combineScore.broadJump,
-      overallAthleticScore: combineScore.getOverallAthleticScore(),
-      isCompleteWorkout: combineScore.isCompleteWorkout(),
-      // Formatted values for better API response
-      fortyTimeFormatted: combineScore.fortyTime ? `${combineScore.fortyTime.toFixed(2)}s` : undefined,
-      verticalLeapFormatted: combineScore.verticalLeap ? `${combineScore.verticalLeap}"` : undefined,
-      broadJumpFormatted: combineScore.broadJump ? `${combineScore.broadJump}"` : undefined,
+      id: score.id!, playerId: score.playerId, prospectId: score.prospectId,
+      height: score.height, weight: score.weight, handSize: score.handSize, armLength: score.armLength,
+      fortyTime: score.fortyTime, tenYardSplit: score.tenYardSplit, twentyYardShuttle: score.twentyYardShuttle,
+      threeCone: score.threeCone, verticalLeap: score.verticalLeap, broadJump: score.broadJump, benchPress: score.benchPress,
+      overallAthleticScore: score.getOverallAthleticScore(), isCompleteWorkout: score.isCompleteWorkout(),
+      fortyTimeFormatted: score.fortyTime ? `${score.fortyTime.toFixed(2)}s` : undefined,
+      verticalLeapFormatted: score.verticalLeap ? `${score.verticalLeap}"` : undefined,
+      broadJumpFormatted: score.broadJump ? `${score.broadJump}"` : undefined,
     };
   }
 }

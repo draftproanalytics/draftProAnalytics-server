@@ -2,7 +2,9 @@
 import { Router } from 'express';
 import { ProspectController } from '../controllers/ProspectController';
 import { ProspectService } from '@/application/prospect/services/ProspectService';
+import { ProspectProfileQueryService } from '@/application/prospect/services/ProspectProfileQueryService';
 import { PrismaProspectRepository } from '@/infrastructure/repositories/PrismaProspectRepository';
+import { PrismaCombineScoreRepository } from '@/infrastructure/repositories/PrismaCombineScoreRepository';
 import { validateBody, validateParams, validateQuery } from '../middleware/validation';
 import {
   CreateProspectDtoSchema,
@@ -15,13 +17,17 @@ import {
   CombineScoreFilterDtoSchema,
 } from '@/application/prospect/dto/ProspectDto';
 import { z } from 'zod';
+import { prisma } from '@/infrastructure/database/prisma';
+import { requirePermission } from '@/modules/accessControl/presentation/security/requirePermission';
 
 const router = Router();
 
 // Dependency injection
 const prospectRepository = new PrismaProspectRepository();
-const prospectService = new ProspectService(prospectRepository);
-const prospectController = new ProspectController(prospectService);
+const combineScoreRepository = new PrismaCombineScoreRepository();
+const prospectService = new ProspectService(prospectRepository, combineScoreRepository);
+const prospectProfileQueryService = new ProspectProfileQueryService();
+const prospectController = new ProspectController(prospectService, prospectProfileQueryService);
 
 // Parameter validation schemas
 const IdParamsSchema = z.object({
@@ -56,6 +62,7 @@ const DraftedQuerySchema = PaginationDtoSchema.extend({
 // Basic CRUD routes
 router.post(
   '/',
+  requirePermission(prisma, 'SCOUTING', 'CREATE'),
   validateBody(CreateProspectDtoSchema),
   prospectController.createProspect
 );
@@ -67,6 +74,12 @@ router.get(
 );
 
 router.get(
+  '/:id/profile',
+  validateParams(IdParamsSchema),
+  prospectController.getProspectProfile
+);
+
+router.get(
   '/:id',
   validateParams(IdParamsSchema),
   prospectController.getProspectById
@@ -74,6 +87,7 @@ router.get(
 
 router.put(
   '/:id',
+  requirePermission(prisma, 'SCOUTING', 'EDIT'),
   validateParams(IdParamsSchema),
   validateBody(UpdateProspectDtoSchema),
   prospectController.updateProspect
@@ -81,6 +95,7 @@ router.put(
 
 router.delete(
   '/:id',
+  requirePermission(prisma, 'SCOUTING', 'DELETE'),
   validateParams(IdParamsSchema),
   prospectController.deleteProspect
 );
@@ -145,6 +160,7 @@ router.get(
 // Specialized update routes
 router.patch(
   '/:id/personal-info',
+  requirePermission(prisma, 'SCOUTING', 'EDIT'),
   validateParams(IdParamsSchema),
   validateBody(UpdatePersonalInfoDtoSchema),
   prospectController.updatePersonalInfo
@@ -152,6 +168,7 @@ router.patch(
 
 router.patch(
   '/:id/combine-scores',
+  requirePermission(prisma, 'SCOUTING', 'EDIT'),
   validateParams(IdParamsSchema),
   validateBody(UpdateCombineScoresDtoSchema),
   prospectController.updateCombineScores
@@ -159,6 +176,7 @@ router.patch(
 
 router.patch(
   '/:id/draft-status/drafted',
+  requirePermission(prisma, 'SCOUTING', 'EDIT'),
   validateParams(IdParamsSchema),
   validateBody(MarkAsDraftedDtoSchema),
   prospectController.markAsDrafted
@@ -166,6 +184,7 @@ router.patch(
 
 router.patch(
   '/:id/draft-status/undrafted',
+  requirePermission(prisma, 'SCOUTING', 'EDIT'),
   validateParams(IdParamsSchema),
   prospectController.markAsUndrafted
 );

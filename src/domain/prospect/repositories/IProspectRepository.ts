@@ -1,14 +1,17 @@
 // src/domain/prospect/repositories/IProspectRepository.ts
 import { Prospect } from '../entities/Prospect';
 import { PaginationParams, PaginatedResponse } from '@/shared/types/common';
+import type { ProspectDraftStatus } from '../entities/ProspectDraftStatus';
 
 export interface ProspectFilters {
   firstName?: string;
   lastName?: string;
+  playerName?: string;
   position?: string;
   college?: string;
   homeState?: string;
   drafted?: boolean;
+  draftStatus?: ProspectDraftStatus;
   draftYear?: number;
   teamId?: number;
   minHeight?: number;

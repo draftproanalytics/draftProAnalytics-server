@@ -114,11 +114,11 @@ export class PrismaProspectRepository implements IProspectRepository {
   }
 
   async findUndrafted(pagination?: PaginationParams): Promise<PaginatedResponse<Prospect>> {
-    return this.findAll({ drafted: false }, pagination);
+    return this.findAll({ draftStatus: 'PRE_DRAFT' }, pagination);
   }
 
-  async findDrafted(draftYear: number, pagination?: PaginationParams): Promise<PaginatedResponse<Prospect>> {
-    const filters: ProspectFilters = { drafted: true };
+  async findDrafted(draftYear?: number, pagination?: PaginationParams): Promise<PaginatedResponse<Prospect>> {
+    const filters: ProspectFilters = { draftStatus: 'DRAFTED' };
     if (draftYear) {
       filters.draftYear = draftYear;
     }
@@ -130,25 +130,28 @@ export class PrismaProspectRepository implements IProspectRepository {
   }
 
   async findTopAthletes(limit: number = 10): Promise<Prospect[]> {
-    // Find prospects with complete combine scores and good athleticism
     const prospects = await prisma.prospect.findMany({
       where: {
-        fortyTime: { not: null },
-        verticalLeap: { not: null },
-        benchPress: { not: null },
-        broadJump: { not: null },
-        threeCone: { not: null },
-        twentyYardShuttle: { not: null },
+        CombineScore: {
+          is: {
+            fortyTime: { not: null },
+            tenYardSplit: { not: null },
+            verticalLeap: { not: null },
+            broadJump: { not: null },
+            threeCone: { not: null },
+            twentyYardShuttle: { not: null },
+            benchPress: { not: null },
+          },
+        },
       },
       orderBy: [
-        { fortyTime: 'asc' }, // Faster 40 time is better
-        { verticalLeap: 'desc' }, // Higher vertical leap is better
-        { benchPress: 'desc' }, // More bench press is better
+        { CombineScore: { fortyTime: 'asc' } },
+        { CombineScore: { verticalLeap: 'desc' } },
+        { CombineScore: { benchPress: 'desc' } },
       ],
       take: limit,
     });
-
-    return prospects.map(prospect => this.convertToProspect(prospect));
+    return prospects.map((prospect) => this.convertToProspect(prospect));
   }
 
   async findByCombineScore(
@@ -243,89 +246,45 @@ export class PrismaProspectRepository implements IProspectRepository {
     if (!filters) return {};
 
     const where: Record<string, unknown> = {};
+    const combineWhere: Record<string, unknown> = {};
 
-    if (filters.firstName) {
-      where.firstName = { contains: filters.firstName, mode: 'insensitive' };
+    if (filters.firstName) where.firstName = { contains: filters.firstName };
+    if (filters.lastName) where.lastName = { contains: filters.lastName };
+    if (filters.playerName) {
+      const terms = filters.playerName.trim().split(/\s+/).filter(Boolean);
+      where.AND = terms.map((term) => ({
+        OR: [
+          { firstName: { contains: term } },
+          { lastName: { contains: term } },
+        ],
+      }));
     }
+    if (filters.position) where.position = { contains: filters.position };
+    if (filters.college) where.college = { contains: filters.college };
+    if (filters.homeState) where.homeState = { contains: filters.homeState };
+    if (filters.draftStatus !== undefined) where.draftStatus = filters.draftStatus;
+    else if (filters.drafted !== undefined) where.draftStatus = filters.drafted ? 'DRAFTED' : 'PRE_DRAFT';
+    if (filters.draftYear !== undefined) where.draftYear = filters.draftYear;
+    if (filters.teamId !== undefined) where.teamId = filters.teamId;
 
-    if (filters.lastName) {
-      where.lastName = { contains: filters.lastName, mode: 'insensitive' };
-    }
+    const range = (min?: number, max?: number): Record<string, number> | undefined => {
+      if (min === undefined && max === undefined) return undefined;
+      return { ...(min !== undefined ? { gte: min } : {}), ...(max !== undefined ? { lte: max } : {}) };
+    };
 
-    if (filters.position) {
-      where.position = { contains: filters.position, mode: 'insensitive' };
-    }
+    const height = range(filters.minHeight, filters.maxHeight);
+    const weight = range(filters.minWeight, filters.maxWeight);
+    const fortyTime = range(filters.minFortyTime, filters.maxFortyTime);
+    const verticalLeap = range(filters.minVerticalLeap, filters.maxVerticalLeap);
+    const benchPress = range(filters.minBenchPress, filters.maxBenchPress);
+    if (height) combineWhere.height = height;
+    if (weight) combineWhere.weight = weight;
+    if (fortyTime) combineWhere.fortyTime = fortyTime;
+    if (verticalLeap) combineWhere.verticalLeap = verticalLeap;
+    if (benchPress) combineWhere.benchPress = benchPress;
 
-    if (filters.college) {
-      where.college = { contains: filters.college, mode: 'insensitive' };
-    }
-
-    if (filters.homeState) {
-      where.homeState = { contains: filters.homeState, mode: 'insensitive' };
-    }
-
-    if (filters.drafted !== undefined) {
-      where.drafted = filters.drafted;
-    }
-
-    if (filters.draftYear !== undefined) {
-      where.draftYear = filters.draftYear;
-    }
-
-    if (filters.teamId !== undefined) {
-      where.teamId = filters.teamId;
-    }
-
-    if (filters.minHeight !== undefined || filters.maxHeight !== undefined) {
-      where.height = {};
-      if (filters.minHeight !== undefined) {
-        (where.height as any).gte = filters.minHeight;
-      }
-      if (filters.maxHeight !== undefined) {
-        (where.height as any).lte = filters.maxHeight;
-      }
-    }
-
-    if (filters.minWeight !== undefined || filters.maxWeight !== undefined) {
-      where.weight = {};
-      if (filters.minWeight !== undefined) {
-        (where.weight as any).gte = filters.minWeight;
-      }
-      if (filters.maxWeight !== undefined) {
-        (where.weight as any).lte = filters.maxWeight;
-      }
-    }
-
-    if (filters.minFortyTime !== undefined || filters.maxFortyTime !== undefined) {
-      where.fortyTime = {};
-      if (filters.minFortyTime !== undefined) {
-        (where.fortyTime as any).gte = filters.minFortyTime;
-      }
-      if (filters.maxFortyTime !== undefined) {
-        (where.fortyTime as any).lte = filters.maxFortyTime;
-      }
-    }
-
-    if (filters.minVerticalLeap !== undefined || filters.maxVerticalLeap !== undefined) {
-      where.verticalLeap = {};
-      if (filters.minVerticalLeap !== undefined) {
-        (where.verticalLeap as any).gte = filters.minVerticalLeap;
-      }
-      if (filters.maxVerticalLeap !== undefined) {
-        (where.verticalLeap as any).lte = filters.maxVerticalLeap;
-      }
-    }
-
-    if (filters.minBenchPress !== undefined || filters.maxBenchPress !== undefined) {
-      where.benchPress = {};
-      if (filters.minBenchPress !== undefined) {
-        (where.benchPress as any).gte = filters.minBenchPress;
-      }
-      if (filters.maxBenchPress !== undefined) {
-        (where.benchPress as any).lte = filters.maxBenchPress;
-      }
-    }
-
+    if (Object.keys(combineWhere).length > 0) where.CombineScore = { is: combineWhere };
     return where;
   }
+
 }

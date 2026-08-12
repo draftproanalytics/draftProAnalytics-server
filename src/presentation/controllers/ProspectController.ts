@@ -1,6 +1,7 @@
 // src/presentation/controllers/ProspectController.ts
 import { Request, Response, NextFunction } from 'express';
 import { ProspectService } from '@/application/prospect/services/ProspectService';
+import { ProspectProfileQueryService, ProspectProfileDto } from '@/application/prospect/services/ProspectProfileQueryService';
 import { ApiResponse, PaginatedResponse } from '@/shared/types/common';
 import { 
   ProspectResponseDto, 
@@ -11,7 +12,10 @@ import {
 } from '@/application/prospect/dto/ProspectDto';
 
 export class ProspectController {
-  constructor(private readonly prospectService: ProspectService) {}
+  constructor(
+    private readonly prospectService: ProspectService,
+    private readonly prospectProfileQueryService: ProspectProfileQueryService
+  ) {}
 
   createProspect = async (
     req: Request,
@@ -47,6 +51,20 @@ export class ProspectController {
     }
   };
 
+
+  getProspectProfile = async (
+    req: Request,
+    res: Response<ApiResponse<ProspectProfileDto>>,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const profile = await this.prospectProfileQueryService.getProspectProfile(parseInt(req.params.id));
+      res.json({ success: true, data: profile });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getAllProspects = async (
     req: Request,
     res: Response<{success: boolean, data: ProspectResponseDto[], pagination: any}>,
@@ -62,10 +80,12 @@ export class ProspectController {
       const filters: ProspectFiltersDto = {
         firstName: req.query.firstName as string,
         lastName: req.query.lastName as string,
+        playerName: req.query.playerName as string,
         position: req.query.position as string,
         college: req.query.college as string,
         homeState: req.query.homeState as string,
         drafted: req.query.drafted ? req.query.drafted === 'true' : undefined,
+        draftStatus: req.query.draftStatus as 'PRE_DRAFT' | 'DRAFTED' | 'UDFA' | undefined,
         draftYear: req.query.draftYear ? parseInt(req.query.draftYear as string) : undefined,
         teamId: req.query.teamId ? parseInt(req.query.teamId as string) : undefined,
         minHeight: req.query.minHeight ? parseFloat(req.query.minHeight as string) : undefined,
@@ -85,9 +105,10 @@ export class ProspectController {
         Object.entries(filters).filter(([_, value]) => value !== undefined)
       ) as ProspectFiltersDto;
 
+      const pageSize = req.query.pageSize ?? req.query.limit;
       const pagination: PaginationDto = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        limit: pageSize ? parseInt(pageSize as string) : 25,
       };
       /*
       console.log('Parsed filters:', cleanFilters);
@@ -151,9 +172,10 @@ export class ProspectController {
   ): Promise<void> => {
     try {
       const position = req.params.position;
+      const pageSize = req.query.pageSize ?? req.query.limit;
       const pagination: PaginationDto = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        limit: pageSize ? parseInt(pageSize as string) : 25,
       };
 
       const prospects = await this.prospectService.getProspectsByPosition(position, pagination);
@@ -174,9 +196,10 @@ export class ProspectController {
   ): Promise<void> => {
     try {
       const college = req.params.college;
+      const pageSize = req.query.pageSize ?? req.query.limit;
       const pagination: PaginationDto = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        limit: pageSize ? parseInt(pageSize as string) : 25,
       };
 
       const prospects = await this.prospectService.getProspectsByCollege(college, pagination);
@@ -196,9 +219,10 @@ export class ProspectController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      const pageSize = req.query.pageSize ?? req.query.limit;
       const pagination: PaginationDto = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        limit: pageSize ? parseInt(pageSize as string) : 25,
       };
 
       const prospects = await this.prospectService.getUndraftedProspects(pagination);
@@ -219,9 +243,10 @@ export class ProspectController {
   ): Promise<void> => {
     try {
       const draftYear = req.query.draftYear ? parseInt(req.query.draftYear as string) : undefined;
+      const pageSize = req.query.pageSize ?? req.query.limit;
       const pagination: PaginationDto = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        limit: pageSize ? parseInt(pageSize as string) : 25,
       };
 
       const prospects = await this.prospectService.getDraftedProspects(draftYear, pagination);
@@ -242,9 +267,10 @@ export class ProspectController {
   ): Promise<void> => {
     try {
       const teamId = parseInt(req.params.teamId);
+      const pageSize = req.query.pageSize ?? req.query.limit;
       const pagination: PaginationDto = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        limit: pageSize ? parseInt(pageSize as string) : 25,
       };
 
       const prospects = await this.prospectService.getProspectsByTeam(teamId, pagination);
@@ -360,9 +386,10 @@ export class ProspectController {
         maxVerticalLeap: req.query.maxVerticalLeap ? parseFloat(req.query.maxVerticalLeap as string) : undefined,
       };
 
+      const pageSize = req.query.pageSize ?? req.query.limit;
       const pagination: PaginationDto = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        limit: pageSize ? parseInt(pageSize as string) : 25,
       };
 
       const prospects = await this.prospectService.getProspectsByCombineScore(filters, pagination);

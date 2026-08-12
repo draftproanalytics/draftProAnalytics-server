@@ -1,6 +1,6 @@
 I.Client
 
-zip -r draftProAnalytics-client-draft-report2.zip draftProAnalytics-client \
+zip -r draftProAnalytics-client-product-name-registration.zip draftProAnalytics-client \
   -x "draftProAnalytics-client/node_modules/*" \
      "draftProAnalytics-client/dist/*" \
      "draftProAnalytics-client/coverage/*" \
@@ -16,7 +16,7 @@ II. Server
 
 cd ~/aiAssistWS
 
-zip -r draftProAnalytics-server-draft-report2-1.zip draftProAnalytics-server \
+zip -r draftProAnalytics-server-product-name-registration.zip draftProAnalytics-server \
   -x "draftProAnalytics-server/node_modules/*" \
      "draftProAnalytics-server/dist/*" \
      "draftProAnalytics-server/coverage/*" \

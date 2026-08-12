@@ -42,10 +42,6 @@ export class PrismaProspectWriteRepository implements IProspectWriteRepository {
             college: payload.school ?? '',
             position: 'WR',
             draftYear: payload.draftYear,
-            height: 0,
-            weight: 0,
-            handSize: null,
-            armLength: null,
             homeCity: null,
             homeState: null,
    
