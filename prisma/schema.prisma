@@ -32,7 +32,6 @@ model CombineScore {
   Player            Player?   @relation(fields: [playerId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_Combine_Score_1")
 
   @@index([playerId], map: "fk_Combine_Score_1_idx")
-  @@unique([prospectId], map: "uq_CombineScore_prospectId")
 }
 
 model DraftPick {
@@ -222,7 +221,6 @@ model Prospect {
   DraftPick_Prospect_draftPickIdToDraftPick DraftPick?                  @relation("Prospect_draftPickIdToDraftPick", fields: [draftPickId], references: [id], map: "fk_Prospect_DraftPick")
   Team                                      Team?                       @relation(fields: [teamId], references: [id], map: "fk_Prospect_Team")
   ProspectRanking                           ProspectRanking[]
-  CombineScore                              CombineScore?
 
   @@index([draftPickId], map: "fk_Prospect_DraftPick")
   @@index([teamId], map: "fk_Prospect_Team_idx")
