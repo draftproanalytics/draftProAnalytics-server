@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import type { GetB4MeEvaluationUseCase } from '../../application/usecases/GetB4MeEvaluationUseCase';
 import type { B4MeScoringMode } from '../../domain/enums/B4MeScoringMode';
+import type { SaveManualWrObservedMetricsUseCase } from '../../application/usecases/SaveManualWrObservedMetricsUseCase';
 
 function parseBoolean(value: unknown, defaultValue: boolean): boolean {
   if (typeof value !== 'string') {
@@ -54,7 +55,8 @@ function parseScoringMode(value: unknown): B4MeScoringMode {
 
 export class B4MeAnalysisController {
   public constructor(
-    private readonly getB4MeEvaluationUseCase: GetB4MeEvaluationUseCase
+    private readonly getB4MeEvaluationUseCase: GetB4MeEvaluationUseCase,
+    private readonly saveManualWrObservedMetricsUseCase: SaveManualWrObservedMetricsUseCase
   ) {}
 
   public async search(request: Request, response: Response): Promise<void> {
@@ -175,4 +177,45 @@ export class B4MeAnalysisController {
 
     response.status(200).json(result);
   }
+  public async saveManualObservedMetrics(request: Request, response: Response): Promise<void> {
+    const prospectId = parseRequiredInt(request.params.id);
+    const personId = request.user?.personId;
+
+    if (prospectId === null) {
+      response.status(400).json({ message: 'Invalid prospect id.' });
+      return;
+    }
+    if (typeof personId !== 'number') {
+      response.status(401).json({ message: 'Authenticated person id is required.' });
+      return;
+    }
+
+    const body = request.body as Record<string, unknown>;
+    const numeric = (key: string): number => typeof body[key] === 'number' ? body[key] as number : Number(body[key]);
+    const nullableText = (key: string): string | null =>
+      typeof body[key] === 'string' && (body[key] as string).trim().length > 0
+        ? (body[key] as string).trim()
+        : null;
+
+    try {
+      await this.saveManualWrObservedMetricsUseCase.execute({
+        prospectId,
+        yprr: numeric('yprr'),
+        pffOverallGrade: numeric('pffOverallGrade'),
+        contestedCatchRate: numeric('contestedCatchRate'),
+        behindLosTargetRate: numeric('behindLosTargetRate'),
+        metricSeasonYear: numeric('metricSeasonYear'),
+        sourceName: typeof body.sourceName === 'string' ? body.sourceName.trim() : '',
+        sourceUrl: nullableText('sourceUrl'),
+        notes: nullableText('notes'),
+        enteredByPersonId: personId
+      });
+      response.status(204).send();
+    } catch (error) {
+      response.status(400).json({
+        message: error instanceof Error ? error.message : 'Unable to save manual WR metrics.'
+      });
+    }
+  }
+
 }

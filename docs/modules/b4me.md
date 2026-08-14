@@ -31,12 +31,14 @@ Use exact Prisma model names from the current schema.
 
 ## WR metrics
 
-Current WR evaluation may use metrics such as:
+Current WR evaluation includes factual/observed metrics and contextual or derived metrics. The four published research indicators are:
 
-- Receptions
-- Targets
-- Missed tackles forced per reception
-- Yards after contact per reception
+- Yards per route run (YPRR)
+- Overall PFF grade
+- Contested catch rate
+- Behind-LOS target rate
+
+Research HIT/MISS status is only assigned when the metric is source-backed. Derived estimates remain visible as `DERIVED_ESTIMATE` and are excluded from the research threshold count. Receptions, targets, missed tackles forced per reception, YAC after contact per reception, and other traits remain contextual inputs.
 
 Metrics should carry source and verification information as the module evolves.
 
@@ -66,6 +68,8 @@ POST /api/b4me/wr/live-evaluate
 Preserve exact existing contracts when implementing.
 
 ## Evaluation workflow
+
+For draft-class WR research indicators, use the prospect's final college season (normally `draftYear - 1`) and persist that season-selection policy in source metadata.
 
 A normal evaluation should:
 

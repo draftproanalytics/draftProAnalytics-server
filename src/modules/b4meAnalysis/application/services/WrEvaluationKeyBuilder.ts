@@ -1,6 +1,8 @@
 import type { B4MeScoringMode } from '../../domain/enums/B4MeScoringMode';
 import type { WrProspectSearchFilters } from '../../domain/contracts/WrFramework.types';
 
+const WR_EVALUATION_POLICY_VERSION = 'source-backed-research-v1';
+
 export class WrEvaluationKeyBuilder {
   public build(prospectId: number, frameworkVersion: string, filters: WrProspectSearchFilters): string {
     const toggles = [
@@ -14,6 +16,6 @@ export class WrEvaluationKeyBuilder {
       filters.enableRvaAdjustment ? 'rva1' : 'rva0'
     ].join('|');
 
-    return ['WR', String(prospectId), frameworkVersion, filters.scoringMode as B4MeScoringMode, toggles].join('::');
+    return ['WR', String(prospectId), frameworkVersion, WR_EVALUATION_POLICY_VERSION, filters.scoringMode as B4MeScoringMode, toggles].join('::');
   }
 }

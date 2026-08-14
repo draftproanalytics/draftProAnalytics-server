@@ -287,4 +287,10 @@ export class PrismaB4MeEvaluationOrchestratorRepository
 
     return stored;
   }
+  public async deleteStoredWrEvaluationsForProspect(prospectId: number): Promise<void> {
+    await this.prisma.b4MeProspectEvaluation.deleteMany({
+      where: { prospectId, positionGroup: 'WR' }
+    });
+  }
+
 }

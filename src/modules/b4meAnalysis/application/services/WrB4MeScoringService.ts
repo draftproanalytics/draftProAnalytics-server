@@ -84,41 +84,87 @@ export class WrB4MeScoringService {
 
   private buildBase(metrics: WrMetricsRecord): WrBaseScoreResult {
     const items: Big4MetricResult[] = [
-      {
+      this.buildResearchIndicator(metrics, {
         key: 'YPRR',
+        metricField: 'yprr',
         label: 'Yards Per Route Run',
         threshold: 3.0,
-        value: metrics.yprr,
-        passed: (metrics.yprr ?? 0) >= 3.0
-      },
-      {
+        comparison: '>=',
+        value: metrics.yprr
+      }),
+      this.buildResearchIndicator(metrics, {
         key: 'PFF_GRADE',
+        metricField: 'pffOverallGrade',
         label: 'PFF Overall Grade',
         threshold: 83.0,
-        value: metrics.pffOverallGrade,
-        passed: (metrics.pffOverallGrade ?? 0) >= 83.0
-      },
-      {
+        comparison: '>=',
+        value: metrics.pffOverallGrade
+      }),
+      this.buildResearchIndicator(metrics, {
         key: 'CCR',
+        metricField: 'contestedCatchRate',
         label: 'Contested Catch Rate',
         threshold: 50.0,
-        value: metrics.contestedCatchRate,
-        passed: (metrics.contestedCatchRate ?? 0) >= 50.0
-      },
-      {
+        comparison: '>=',
+        value: metrics.contestedCatchRate
+      }),
+      this.buildResearchIndicator(metrics, {
         key: 'BLOS_RATE',
+        metricField: 'behindLosTargetRate',
         label: 'Behind-LOS Target Rate',
         threshold: 18.0,
-        value: metrics.behindLosTargetRate,
-        passed: metrics.behindLosTargetRate !== null && metrics.behindLosTargetRate < 18.0
-      }
+        comparison: '<',
+        value: metrics.behindLosTargetRate
+      })
     ];
 
-    const rawBoxCount = items.filter((item) => item.passed).length;
+    const sourceBackedItems = items.filter((item) => item.sourceBacked);
+    const rawBoxCount = sourceBackedItems.filter((item) => item.passed === true).length;
+
     return {
       metricResults: items,
       rawBoxCount,
+      availableMetricCount: sourceBackedItems.length,
+      derivedMetricCount: items.filter((item) => item.status === 'DERIVED_ESTIMATE').length,
       baseScore: rawBoxCount
+    };
+  }
+
+  private buildResearchIndicator(
+    metrics: WrMetricsRecord,
+    input: {
+      readonly key: Big4MetricResult['key'];
+      readonly metricField: Big4MetricResult['metricField'];
+      readonly label: string;
+      readonly threshold: number;
+      readonly comparison: Big4MetricResult['comparison'];
+      readonly value: number | null;
+    }
+  ): Big4MetricResult {
+    if (input.value === null) {
+      return { ...input, status: 'UNAVAILABLE', passed: null, sourceBacked: false };
+    }
+
+    const metadata = metrics.sourceMetadataJson;
+    const isDerived = metadata?.derivedFields.includes(input.metricField) ?? false;
+    if (isDerived) {
+      return { ...input, status: 'DERIVED_ESTIMATE', passed: null, sourceBacked: false };
+    }
+
+    const isObserved = metadata?.observedFields.includes(input.metricField) ?? false;
+    if (!isObserved) {
+      return { ...input, status: 'UNVERIFIED', passed: null, sourceBacked: false };
+    }
+
+    const passed = input.comparison === '>='
+      ? input.value >= input.threshold
+      : input.value < input.threshold;
+
+    return {
+      ...input,
+      status: passed ? 'HIT' : 'MISS',
+      passed,
+      sourceBacked: true
     };
   }
 
@@ -369,8 +415,8 @@ export class WrB4MeScoringService {
         stage: 'BASE_BIG4',
         label: 'Base Big 4',
         delta: round(base.baseScore),
-        summary: `${base.rawBoxCount} of 4 original thresholds met.`,
-        details: base.metricResults.map((item) => `${item.label}: ${item.passed ? 'pass' : 'fail'} (${item.value ?? 'n/a'})`)
+        summary: `${base.rawBoxCount} of ${base.availableMetricCount} source-backed research thresholds met; ${base.derivedMetricCount} derived estimates excluded from HIT/MISS.`,
+        details: base.metricResults.map((item) => `${item.label}: ${item.status} (${item.value ?? 'n/a'})`)
       },
       {
         stage: 'MOD_1',

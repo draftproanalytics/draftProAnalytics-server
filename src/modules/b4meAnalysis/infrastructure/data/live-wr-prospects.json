@@ -11,11 +11,11 @@
       "playerSearchName": "Denzel Boston",
       "resolvedPlayerName": "Denzel Boston",
       "draftYear": 2026,
-      "sourcesUsed": ["Local file fallback"],
+      "sourcesUsed": [
+        "Jets X-Factor 2026 WR Big 4 article",
+        "Local file fallback"
+      ],
       "derivedFields": [
-        "pffOverallGrade",
-        "contestedCatchRate",
-        "behindLosTargetRate",
         "missedTacklesForcedPerReception",
         "yacAfterContactPerReception",
         "pressManWinRate",
@@ -30,13 +30,24 @@
         "routesRun"
       ],
       "injuryMissedGamesIsConfirmedOnly": true,
-      "notes": ["File-backed fallback record."]
+      "notes": [
+        "2026 WR Big 4 values are source-backed from the published Jets X-Factor article.",
+        "Other fallback metrics remain derived estimates unless separately sourced."
+      ],
+      "observedFields": [
+        "yprr",
+        "pffOverallGrade",
+        "contestedCatchRate",
+        "behindLosTargetRate"
+      ],
+      "metricSeasonYear": 2025,
+      "seasonSelectionPolicy": "FINAL_COLLEGE_SEASON"
     },
     "metrics": {
-      "yprr": 3.12,
-      "pffOverallGrade": 84.6,
-      "contestedCatchRate": 57.1,
-      "behindLosTargetRate": 12.4,
+      "yprr": 2.44,
+      "pffOverallGrade": 88.0,
+      "contestedCatchRate": 76.9,
+      "behindLosTargetRate": 10.5,
       "receptions": 63,
       "targets": 101,
       "missedTacklesForcedPerReception": 0.14,

@@ -52,4 +52,5 @@ export interface CreateStoredB4MeEvaluationInput {
 export interface IB4MeEvaluationOrchestratorRepository {
   findStoredWrEvaluation(evaluationKey: string): Promise<StoredB4MeEvaluationRecord | null>;
   createStoredWrEvaluation(input: CreateStoredB4MeEvaluationInput): Promise<StoredB4MeEvaluationRecord>;
+  deleteStoredWrEvaluationsForProspect(prospectId: number): Promise<void>;
 }

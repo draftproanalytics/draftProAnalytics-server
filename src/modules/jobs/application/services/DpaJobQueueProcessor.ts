@@ -11,6 +11,8 @@ import type { LoadEspnTeamRostersJobHandler } from './LoadEspnTeamRostersJobHand
 import type { SyncPostSeasonResultsJobHandler } from './SyncPostSeasonResultsJobHandler';
 import type { GenerateTeamNeedsJobHandler } from './GenerateTeamNeedsJobHandler';
 import type { ImportNflversePlayerProductionJobHandler } from './ImportNflversePlayerProductionJobHandler';
+import type { DetectProspectDuplicatesJobHandler } from '@/modules/prospectIdentity/application/DetectProspectDuplicatesJobHandler';
+import type { EvaluateB4MeWrProspectsJobHandler } from './EvaluateB4MeWrProspectsJobHandler';
 
 export interface ProcessJobQueueResultDto {
   readonly claimed: number;
@@ -31,6 +33,8 @@ export class DpaJobQueueProcessor {
     private readonly syncPostSeasonResultsJobHandler: SyncPostSeasonResultsJobHandler,
     private readonly generateTeamNeedsJobHandler: GenerateTeamNeedsJobHandler,
     private readonly importNflversePlayerProductionJobHandler: ImportNflversePlayerProductionJobHandler,
+    private readonly detectProspectDuplicatesJobHandler: DetectProspectDuplicatesJobHandler,
+    private readonly evaluateB4MeWrProspectsJobHandler: EvaluateB4MeWrProspectsJobHandler,
   ) {}
 
   public async processNextJobs(take: number): Promise<ProcessJobQueueResultDto> {
@@ -70,6 +74,10 @@ export class DpaJobQueueProcessor {
           await this.generateTeamNeedsJobHandler.execute(job);
         } else if (job.type === DpaJobType.ImportNflversePlayerProduction) {
           await this.importNflversePlayerProductionJobHandler.execute(job);
+        } else if (job.type === DpaJobType.DetectProspectDuplicates) {
+          await this.detectProspectDuplicatesJobHandler.execute(job);
+        } else if (job.type === DpaJobType.EvaluateB4MeWrProspects) {
+          await this.evaluateB4MeWrProspectsJobHandler.execute(job);
         } else {
           throw new Error(`Unsupported job type: ${job.type}`);
         }

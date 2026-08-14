@@ -41,8 +41,24 @@ import { PrismaNflversePlayerProductionRepository } from '../../infrastructure/p
 import { createNflversePlayerProductionRouter } from './nflversePlayerProduction.routes';
 import { DpaJobsNflImportController } from '../controllers/DpaJobsNflImportController';
 
-// If your app uses RBAC here, add your existing middleware, for example:
-// import { requirePermission } from '@/modules/accessControl/presentation/security/requirePermission';
+import { PrismaProspectIdentityRepository } from '@/modules/prospectIdentity/infrastructure/PrismaProspectIdentityRepository';
+import { DetectProspectDuplicatesJobHandler } from '@/modules/prospectIdentity/application/DetectProspectDuplicatesJobHandler';
+import { EnqueueEvaluateB4MeWrProspectsJobUseCase } from '../../application/use-cases/EnqueueEvaluateB4MeWrProspectsJobUseCase';
+import { EvaluateB4MeWrProspectsJobHandler } from '../../application/services/EvaluateB4MeWrProspectsJobHandler';
+import { PrismaWrImportSeedRepository } from '@/modules/b4meImport/infrastructure/repositories/PrismaWrImportSeedRepository';
+import { PrismaProspectLookupRepository } from '@/modules/b4meAnalysis/infrastructure/repositories/PrismaProspectLookupRepository';
+import { PrismaB4MeWrMetricsRepository } from '@/modules/b4meAnalysis/infrastructure/repositories/PrismaB4MeWrMetricsRepository';
+import { PrismaB4MeEvaluationOrchestratorRepository } from '@/modules/b4meAnalysis/infrastructure/repositories/PrismaB4MeEvaluationOrchestratorRepository';
+import { PrismaB4MeFrameworkRepository } from '@/modules/b4meAnalysis/infrastructure/repositories/PrismaB4MeFrameworkRepository';
+import { HybridLiveWrProspectProvider } from '@/modules/b4meAnalysis/infrastructure/providers/HybridLiveWrProspectProvider';
+import { PrismaProspectWriteRepository } from '@/modules/b4meAnalysis/infrastructure/repositories/PrismaProspectWriteRepository';
+import { PrismaB4MeWrMetricsWriteRepository } from '@/modules/b4meAnalysis/infrastructure/repositories/PrismaB4MeWrMetricsWriteRepository';
+import { LiveWrProspectIntakeService } from '@/modules/b4meAnalysis/application/services/LiveWrProspectIntakeService';
+import { B4MeMethodologyService } from '@/modules/b4meAnalysis/application/services/B4MeMethodologyService';
+import { WrB4MeScoringService } from '@/modules/b4meAnalysis/application/services/WrB4MeScoringService';
+import { WrEvaluationKeyBuilder } from '@/modules/b4meAnalysis/application/services/WrEvaluationKeyBuilder';
+import { requirePermission } from '@/modules/accessControl/presentation/security/requirePermission';
+import { requireAuth } from '@/modules/auth/presentation/http/middleware/requireAuth.middleware';
 
 export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   const router = Router();
@@ -59,6 +75,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   const teamNeedsGenerationRepository = new PrismaTeamNeedsGenerationRepository(prisma);
   const nflversePlayerProductionRepository = new PrismaNflversePlayerProductionRepository(prisma);
   const nflversePlayerProductionProvider = new NflversePlayerProductionProvider();
+  const prospectIdentityRepository = new PrismaProspectIdentityRepository(prisma);
 
   const loadNflSeasonScheduleJobHandler = new LoadNflSeasonScheduleJobHandler(
     jobQueueRepository,
@@ -80,6 +97,24 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   const syncPostSeasonResultsJobHandler = new SyncPostSeasonResultsJobHandler(jobQueueRepository, postSeasonResultSyncRepository);
   const generateTeamNeedsJobHandler = new GenerateTeamNeedsJobHandler(jobQueueRepository, teamNeedsGenerationRepository);
   const importNflversePlayerProductionJobHandler = new ImportNflversePlayerProductionJobHandler(jobQueueRepository, nflversePlayerProductionProvider, nflversePlayerProductionRepository);
+  const detectProspectDuplicatesJobHandler = new DetectProspectDuplicatesJobHandler(jobQueueRepository, prospectIdentityRepository);
+  const b4meSeedRepository = new PrismaWrImportSeedRepository(prisma);
+  const b4meProspectRepository = new PrismaProspectLookupRepository(prisma);
+  const b4meMetricsRepository = new PrismaB4MeWrMetricsRepository(prisma);
+  const b4meEvaluationRepository = new PrismaB4MeEvaluationOrchestratorRepository(prisma);
+  const b4meFrameworkRepository = new PrismaB4MeFrameworkRepository(prisma);
+  const b4meIntake = new LiveWrProspectIntakeService(
+    new HybridLiveWrProspectProvider(),
+    new PrismaProspectWriteRepository(prisma),
+    new PrismaB4MeWrMetricsWriteRepository(prisma),
+    prospectIdentityRepository,
+  );
+  const b4meProviderConcurrency = Math.max(1, Number.parseInt(process.env.B4ME_WR_PROVIDER_CONCURRENCY ?? '3', 10) || 3);
+  const b4meEvaluationJobHandler = new EvaluateB4MeWrProspectsJobHandler(
+    jobQueueRepository, b4meSeedRepository, b4meProspectRepository, b4meMetricsRepository,
+    b4meEvaluationRepository, prospectIdentityRepository, b4meFrameworkRepository, b4meIntake,
+    new B4MeMethodologyService(), new WrB4MeScoringService(), new WrEvaluationKeyBuilder(), b4meProviderConcurrency,
+  );
 
   const jobQueueProcessor = new DpaJobQueueProcessor(
     jobQueueRepository,
@@ -93,6 +128,8 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
     syncPostSeasonResultsJobHandler,
     generateTeamNeedsJobHandler,
     importNflversePlayerProductionJobHandler,
+    detectProspectDuplicatesJobHandler,
+    b4meEvaluationJobHandler,
   );
 
   const controller = new DpaJobsNflImportController(
@@ -106,6 +143,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
     new EnqueueSyncPostSeasonResultsJobUseCase(jobQueueRepository),
     new EnqueueGenerateTeamNeedsJobUseCase(jobQueueRepository),
     new EnqueueImportNflversePlayerProductionJobUseCase(jobQueueRepository),
+    new EnqueueEvaluateB4MeWrProspectsJobUseCase(jobQueueRepository),
     new ProcessDpaJobQueueUseCase(jobQueueProcessor),
     new ListDpaJobsUseCase(jobQueueRepository),
     new ReadDpaJobUseCase(jobQueueRepository),
@@ -128,6 +166,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   router.post('/imports/postseason-results/sync', controller.enqueueSyncPostSeasonResults);
   router.post('/team-needs/generate', controller.enqueueGenerateTeamNeeds);
   router.post('/imports/nflverse-player-production', controller.enqueueImportNflversePlayerProduction);
+  router.post('/b4me-wr-evaluation', requireAuth, requirePermission(prisma, 'SCOUTING', 'EDIT'), controller.enqueueEvaluateB4MeWrProspects);
   router.post('/queue/process', controller.processQueue);
   router.post('/:jobId/cancel', controller.cancelJob);
 

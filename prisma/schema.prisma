@@ -15,24 +15,23 @@ model AppSetting {
 
 model CombineScore {
   id                Int       @id @default(autoincrement())
-  playerId          Int?
-  prospectId        Int?
-  height            Float?    @db.Float
-  weight            Float?    @db.Float
-  handSize          Float?    @db.Float
-  armLength         Float?    @db.Float
   fortyTime         Float?    @db.Float
   tenYardSplit      Float?    @db.Float
   twentyYardShuttle Float?    @db.Float
   threeCone         Float?    @db.Float
   verticalLeap      Float?    @db.Float
+  playerId          Int?
+  prospectId        Int?      @unique(map: "uq_CombineScore_prospectId")
   broadJump         Float?    @db.Float
+  height            Float?    @db.Float
+  weight            Float?    @db.Float
+  handSize          Float?    @db.Float
+  armLength         Float?    @db.Float
   benchPress        Int?
+  Prospect          Prospect? @relation(fields: [prospectId], references: [id], onUpdate: NoAction, map: "fk_CombineScore_Prospect")
   Player            Player?   @relation(fields: [playerId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_Combine_Score_1")
-  Prospect          Prospect? @relation(fields: [prospectId], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_CombineScore_Prospect")
 
   @@index([playerId], map: "fk_Combine_Score_1_idx")
-  @@unique([prospectId], map: "uq_CombineScore_prospectId")
 }
 
 model DraftPick {
@@ -204,8 +203,8 @@ model Prospect {
   college                                   String                      @db.VarChar(75)
   homeCity                                  String?                     @db.VarChar(45)
   homeState                                 String?                     @db.VarChar(45)
-  drafted                                   Boolean                     @default(false) // compatibility: true only when draftStatus = DRAFTED
-  draftStatus                               ProspectDraftStatus          @default(PRE_DRAFT)
+  drafted                                   Boolean                     @default(false)
+  draftStatus                               ProspectDraftStatus         @default(PRE_DRAFT)
   draftYear                                 Int?                        @db.Year
   teamId                                    Int?
   draftPickId                               Int?
@@ -213,6 +212,7 @@ model Prospect {
   updatedAt                                 DateTime?                   @default(now()) @db.Timestamp(0)
   B4MeProspectRvaEvaluation                 B4MeProspectRvaEvaluation[]
   B4MeWRMetrics                             B4MeWRMetrics?
+  CombineScore                              CombineScore?
   DraftPick_DraftPick_prospectIdToProspect  DraftPick[]                 @relation("DraftPick_prospectIdToProspect")
   DraftSimulationPick                       DraftSimulationPick[]
   Player                                    Player[]
@@ -221,7 +221,6 @@ model Prospect {
   DraftPick_Prospect_draftPickIdToDraftPick DraftPick?                  @relation("Prospect_draftPickIdToDraftPick", fields: [draftPickId], references: [id], map: "fk_Prospect_DraftPick")
   Team                                      Team?                       @relation(fields: [teamId], references: [id], map: "fk_Prospect_Team")
   ProspectRanking                           ProspectRanking[]
-  CombineScore                              CombineScore?
 
   @@index([draftPickId], map: "fk_Prospect_DraftPick")
   @@index([teamId], map: "fk_Prospect_Team_idx")
@@ -230,6 +229,66 @@ model Prospect {
   @@index([draftStatus], map: "idx_prospect_draft_status")
   @@index([lastName, firstName], map: "idx_prospect_name")
   @@index([position], map: "idx_prospect_position")
+}
+
+model ProspectDuplicateReview {
+  id                 Int       @id @default(autoincrement())
+  leftProspectId     Int
+  rightProspectId    Int
+  matchScore         Int
+  matchReasonsJson   Json
+  fingerprint        String    @db.VarChar(255)
+  status             String    @default("OPEN") @db.VarChar(24)
+  createdAt          DateTime  @default(now()) @db.DateTime(0)
+  updatedAt          DateTime  @default(now()) @updatedAt @db.DateTime(0)
+  reviewedAt         DateTime? @db.DateTime(0)
+  reviewedByPersonId Int?
+  resolution         String?   @db.VarChar(32)
+  resolutionNotes    String?   @db.Text
+
+  @@unique([leftProspectId, rightProspectId], map: "uq_ProspectDuplicateReview_pair")
+  @@index([status, matchScore], map: "idx_ProspectDuplicateReview_status_score")
+  @@index([leftProspectId], map: "idx_ProspectDuplicateReview_left")
+  @@index([rightProspectId], map: "idx_ProspectDuplicateReview_right")
+}
+
+model ProspectIdentityReview {
+  id                  Int       @id @default(autoincrement())
+  prospectId          Int?
+  candidateProspectId Int?
+  provider            String    @db.VarChar(64)
+  requestedName       String    @db.VarChar(150)
+  resolvedName        String?   @db.VarChar(150)
+  confidenceScore     Int?
+  reason              String    @db.VarChar(64)
+  providerPayloadJson Json?
+  status              String    @default("OPEN") @db.VarChar(24)
+  createdAt           DateTime  @default(now()) @db.DateTime(0)
+  reviewedAt          DateTime? @db.DateTime(0)
+  reviewedByPersonId  Int?
+  resolution          String?   @db.VarChar(32)
+  notes               String?   @db.Text
+
+  @@index([prospectId, status], map: "idx_ProspectIdentityReview_prospect_status")
+  @@index([status, createdAt], map: "idx_ProspectIdentityReview_status_created")
+}
+
+model ProspectMergeAudit {
+  id                  Int      @id @default(autoincrement())
+  survivorProspectId  Int
+  duplicateProspectId Int
+  mergePolicy         String   @default("FILL_EMPTY_ONLY") @db.VarChar(32)
+  survivorBeforeJson  Json
+  duplicateBeforeJson Json
+  fieldsCopiedJson    Json
+  relationsMovedJson  Json
+  conflictsJson       Json
+  performedByPersonId Int?
+  performedAt         DateTime @default(now()) @db.DateTime(0)
+  reason              String   @db.Text
+
+  @@index([survivorProspectId, performedAt], map: "idx_ProspectMergeAudit_survivor")
+  @@index([duplicateProspectId, performedAt], map: "idx_ProspectMergeAudit_duplicate")
 }
 
 model Game {
@@ -1645,24 +1704,24 @@ model DraftTeamScorecardEvaluation {
 }
 
 model NflversePlayerProductionStaging {
-  id                    BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
-  importJobId           Int
-  seasonYear            Int       @db.Year
-  summaryLevel          String    @default("reg") @db.VarChar(16)
-  externalPlayerId      String    @db.VarChar(32)
-  playerName            String    @db.VarChar(150)
-  teamAbbreviation      String    @default("") @db.VarChar(8)
-  position              String?   @db.VarChar(10)
-  positionGroup         String?   @db.VarChar(10)
-  metricsJson           Json
-  suggestedRosterPlayerId String? @db.VarChar(36)
-  matchedRosterPlayerId String?   @db.VarChar(36)
-  matchConfidence       Decimal?  @db.Decimal(5, 2)
-  matchStatus           String    @default("UNMATCHED") @db.VarChar(20)
-  reviewNotes           String?   @db.VarChar(500)
-  promotedEvaluationId BigInt?    @db.UnsignedBigInt
-  createdAt             DateTime  @default(now()) @db.DateTime(0)
-  updatedAt             DateTime  @default(now()) @db.DateTime(0)
+  id                      BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  importJobId             Int
+  seasonYear              Int      @db.Year
+  summaryLevel            String   @default("reg") @db.VarChar(16)
+  externalPlayerId        String   @db.VarChar(32)
+  playerName              String   @db.VarChar(150)
+  teamAbbreviation        String   @default("") @db.VarChar(8)
+  position                String?  @db.VarChar(10)
+  positionGroup           String?  @db.VarChar(10)
+  metricsJson             Json
+  suggestedRosterPlayerId String?  @db.VarChar(36)
+  matchedRosterPlayerId   String?  @db.VarChar(36)
+  matchConfidence         Decimal? @db.Decimal(5, 2)
+  matchStatus             String   @default("UNMATCHED") @db.VarChar(20)
+  reviewNotes             String?  @db.VarChar(500)
+  promotedEvaluationId    BigInt?  @db.UnsignedBigInt
+  createdAt               DateTime @default(now()) @db.DateTime(0)
+  updatedAt               DateTime @default(now()) @db.DateTime(0)
 
   @@unique([seasonYear, summaryLevel, externalPlayerId, teamAbbreviation], map: "uq_NflverseProduction_source")
   @@index([seasonYear, matchStatus], map: "idx_NflverseProduction_review")
@@ -1778,6 +1837,24 @@ model TeamPositionContextCatalog {
   createdAt           DateTime              @default(now()) @db.DateTime(0)
   updatedAt           DateTime              @default(now()) @db.DateTime(0)
   TeamPositionContext TeamPositionContext[]
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProspectMeasurementBackup_20260812 {
+  prospectId        Int    @default(0)
+  height            Float  @db.Float
+  weight            Float  @db.Float
+  handSize          Float? @db.Float
+  armLength         Float? @db.Float
+  fortyTime         Float? @db.Float
+  tenYardSplit      Float? @db.Float
+  verticalLeap      Float? @db.Float
+  broadJump         Float? @db.Float
+  threeCone         Float? @db.Float
+  twentyYardShuttle Float? @db.Float
+  benchPress        Int?
+
+  @@ignore
 }
 
 enum Job_status {

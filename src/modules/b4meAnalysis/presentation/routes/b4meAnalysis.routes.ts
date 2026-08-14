@@ -2,6 +2,8 @@ import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { createB4MeAnalysisModule } from '../../infrastructure/factories/createB4MeAnalysisModule';
+import { requirePermission } from '../../../accessControl/presentation/security/requirePermission';
+import { requireAuth } from '../../../auth/presentation/http/middleware/requireAuth.middleware';
 
 export const createB4MeAnalysisRouter = (prisma: PrismaClient): Router => {
   const router = Router();
@@ -12,6 +14,19 @@ export const createB4MeAnalysisRouter = (prisma: PrismaClient): Router => {
     async (request: Request, response: Response, next: NextFunction): Promise<void> => {
       try {
         await controller.search(request, response);
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  router.put(
+    '/prospects/:id/manual-observed-metrics',
+    requireAuth,
+    requirePermission(prisma, 'SCOUTING', 'EDIT'),
+    async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+      try {
+        await controller.saveManualObservedMetrics(request, response);
       } catch (error) {
         next(error);
       }

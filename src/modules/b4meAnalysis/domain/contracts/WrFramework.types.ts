@@ -36,9 +36,23 @@ export interface WrSourceMetadataRecord {
   readonly resolvedPlayerName: string;
   readonly draftYear: number | null;
   readonly sourcesUsed: string[];
+  readonly observedFields: string[];
   readonly derivedFields: string[];
+  readonly metricSeasonYear: number | null;
+  readonly seasonSelectionPolicy: 'FINAL_COLLEGE_SEASON' | null;
   readonly injuryMissedGamesIsConfirmedOnly: boolean;
   readonly notes: string[];
+  readonly manualObservation?: {
+    readonly sourceType: 'MANUAL';
+    readonly fields: string[];
+    readonly sourceName: string;
+    readonly sourceUrl: string | null;
+    readonly notes: string | null;
+    readonly enteredByPersonId: number;
+    readonly enteredAt: string;
+    readonly metricSeasonYear: number;
+    readonly seasonSelectionPolicy: 'FINAL_COLLEGE_SEASON';
+  } | null;
 }
 
 export interface WrMetricsRecord {
@@ -71,17 +85,30 @@ export interface WrMetricsRecord {
   readonly sourceMetadataJson: WrSourceMetadataRecord | null;
 }
 
+export type WrResearchIndicatorStatus =
+  | 'HIT'
+  | 'MISS'
+  | 'DERIVED_ESTIMATE'
+  | 'UNVERIFIED'
+  | 'UNAVAILABLE';
+
 export interface Big4MetricResult {
   readonly key: 'YPRR' | 'PFF_GRADE' | 'CCR' | 'BLOS_RATE';
+  readonly metricField: 'yprr' | 'pffOverallGrade' | 'contestedCatchRate' | 'behindLosTargetRate';
   readonly label: string;
   readonly threshold: number;
+  readonly comparison: '>=' | '<';
   readonly value: number | null;
-  readonly passed: boolean;
+  readonly status: WrResearchIndicatorStatus;
+  readonly passed: boolean | null;
+  readonly sourceBacked: boolean;
 }
 
 export interface WrBaseScoreResult {
   readonly metricResults: readonly Big4MetricResult[];
   readonly rawBoxCount: number;
+  readonly availableMetricCount: number;
+  readonly derivedMetricCount: number;
   readonly baseScore: number;
 }
 

@@ -12,6 +12,8 @@ import type { EnqueueLoadNflSeasonScheduleJobUseCase } from '../../application/u
 import type { EnqueueSyncPostSeasonResultsJobUseCase } from '../../application/use-cases/EnqueueSyncPostSeasonResultsJobUseCase';
 import type { EnqueueGenerateTeamNeedsJobUseCase } from '../../application/use-cases/EnqueueGenerateTeamNeedsJobUseCase';
 import type { EnqueueImportNflversePlayerProductionJobUseCase } from '../../application/use-cases/EnqueueImportNflversePlayerProductionJobUseCase';
+import type { EnqueueEvaluateB4MeWrProspectsJobUseCase } from '../../application/use-cases/EnqueueEvaluateB4MeWrProspectsJobUseCase';
+import type { EvaluateB4MeWrProspectsPayloadDto, B4MeRefreshPolicy } from '../../domain/dtos/B4MeWrEvaluation.dto';
 import type { ListDpaJobsUseCase } from '../../application/use-cases/ListDpaJobsUseCase';
 import type { ProcessDpaJobQueueUseCase } from '../../application/use-cases/ProcessDpaJobQueueUseCase';
 import type { ReadDpaJobUseCase } from '../../application/use-cases/ReadDpaJobUseCase';
@@ -83,6 +85,7 @@ export class DpaJobsNflImportController {
     private readonly enqueueSyncPostSeasonResultsJobUseCase: EnqueueSyncPostSeasonResultsJobUseCase,
     private readonly enqueueGenerateTeamNeedsJobUseCase: EnqueueGenerateTeamNeedsJobUseCase,
     private readonly enqueueImportNflversePlayerProductionJobUseCase: EnqueueImportNflversePlayerProductionJobUseCase,
+    private readonly enqueueEvaluateB4MeWrProspectsJobUseCase: EnqueueEvaluateB4MeWrProspectsJobUseCase,
     private readonly processDpaJobQueueUseCase: ProcessDpaJobQueueUseCase,
     private readonly listDpaJobsUseCase: ListDpaJobsUseCase,
     private readonly readDpaJobUseCase: ReadDpaJobUseCase,
@@ -170,6 +173,24 @@ export class DpaJobsNflImportController {
     catch (error) { this.writeBadRequest(res, error); }
   };
 
+
+  public enqueueEvaluateB4MeWrProspects = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      const draftYear = typeof body.draftYear === 'number' ? body.draftYear : Number(body.draftYear);
+      if (!Number.isInteger(draftYear) || draftYear < 2000 || draftYear > 2100) throw new Error('draftYear must be a valid year.');
+      const refreshPolicy: B4MeRefreshPolicy = body.refreshPolicy === 'MISSING_ONLY' || body.refreshPolicy === 'FORCE_REFRESH' ? body.refreshPolicy : 'MISSING_OR_STALE';
+      const scoringMode = body.scoringMode === 'BASE_ONLY' || body.scoringMode === 'FULL_DECISION_SCORE' ? body.scoringMode : 'BASE_PLUS_CONTEXT';
+      const requestedByPersonId = req.user?.personId;
+      const payload: EvaluateB4MeWrProspectsPayloadDto = { draftYear, positionGroup: 'WR', refreshPolicy, scoringMode, ...(typeof requestedByPersonId === 'number' ? { requestedByPersonId } : {}) };
+      const job = await this.enqueueEvaluateB4MeWrProspectsJobUseCase.execute(payload);
+      res.status(202).json(job);
+      setImmediate(() => {
+        void this.processDpaJobQueueUseCase.execute(10).catch(() => undefined);
+      });
+    } catch (error) { this.writeBadRequest(res, error); }
+  };
+
   public processQueue = async (req: Request, res: Response): Promise<void> => {
     try {
       const body = req.body as ProcessQueueRequestBody;
@@ -249,6 +270,7 @@ export class DpaJobsNflImportController {
         DpaJobType.SyncPostSeasonResultsFromGames,
         DpaJobType.GenerateTeamNeeds,
         DpaJobType.ImportNflversePlayerProduction,
+        DpaJobType.EvaluateB4MeWrProspects,
       ],
       queueJobs: [
         DpaJobType.ProcessJobQueue,
