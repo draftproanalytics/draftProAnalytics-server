@@ -19,6 +19,7 @@ import { LiveWrProspectIntakeService } from '../../../b4meAnalysis/application/s
 import { HybridLiveWrProspectProvider } from '../../../b4meAnalysis/infrastructure/providers/HybridLiveWrProspectProvider';
 import { PrismaProspectWriteRepository } from '../../../b4meAnalysis/infrastructure/repositories/PrismaProspectWriteRepository';
 import { PrismaB4MeWrMetricsWriteRepository } from '../../../b4meAnalysis/infrastructure/repositories/PrismaB4MeWrMetricsWriteRepository';
+import { PrismaProspectIdentityRepository } from '../../../prospectIdentity/infrastructure/PrismaProspectIdentityRepository';
 
 export const createB4MeImportModule = (prisma: PrismaClient): B4MeImportController => {
   const jobRepository = new PrismaJobRepository(prisma);
@@ -38,11 +39,13 @@ export const createB4MeImportModule = (prisma: PrismaClient): B4MeImportControll
   const liveProvider = new HybridLiveWrProspectProvider();
   const prospectWriteRepository = new PrismaProspectWriteRepository(prisma);
   const wrMetricsWriteRepository = new PrismaB4MeWrMetricsWriteRepository(prisma);
+  const prospectIdentityRepository = new PrismaProspectIdentityRepository(prisma);
 
   const liveWrProspectIntakeService = new LiveWrProspectIntakeService(
     liveProvider,
     prospectWriteRepository,
-    wrMetricsWriteRepository
+    wrMetricsWriteRepository,
+    prospectIdentityRepository
   );
 
   const orchestrator = new WrImportOrchestratorService(

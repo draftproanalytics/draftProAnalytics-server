@@ -6,7 +6,10 @@ export interface LiveWrProspectSourceMetadata {
   readonly resolvedPlayerName: string;
   readonly draftYear: number | null;
   readonly sourcesUsed: string[];
+  readonly observedFields: string[];
   readonly derivedFields: string[];
+  readonly metricSeasonYear: number | null;
+  readonly seasonSelectionPolicy: 'FINAL_COLLEGE_SEASON';
   readonly injuryMissedGamesIsConfirmedOnly: boolean;
   readonly notes: string[];
 }

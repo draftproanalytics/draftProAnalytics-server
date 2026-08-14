@@ -1,10 +1,8 @@
 import type { B4MeScoringMode } from '../../domain/enums/B4MeScoringMode';
 import type { WrProspectSearchFilters } from '../../domain/contracts/WrFramework.types';
-import type {
-  StoredB4MeEvaluationRecord
-} from '../../domain/repositories/IB4MeEvaluationOrchestratorRepository';
 import {
   GetOrCreateWrB4MeEvaluationUseCase,
+  type B4MeListRowDto,
   type B4MeSearchResponseDto
 } from './GetOrCreateWrB4MeEvaluationUseCase';
 
@@ -42,7 +40,7 @@ export interface B4MeEvaluateProspectByIdQueryDto {
 }
 
 export interface B4MeDetailResponseDto {
-  readonly row: StoredB4MeEvaluationRecord | null;
+  readonly row: B4MeListRowDto | null;
   readonly methodology: Record<string, unknown> | null;
   readonly activeFilterSummary: Record<string, unknown>;
   readonly optionalTeamContext: Record<string, unknown> | null;

@@ -80,7 +80,7 @@ export class B4MeMethodologyService {
       positionGroup: 'WR',
       scoringMode: filters.scoringMode,
       layers: [
-        'Base Big 4',
+        'Source-backed Big 4 research indicators',
         'Mod-1 contextual behind-LOS adjuster',
         'Mod-2 PFF vs YPRR divergence',
         'Mod-3 contact archetype',
@@ -89,6 +89,17 @@ export class B4MeMethodologyService {
         'RFA',
         'RVA'
       ],
+      researchIndicatorPolicy: {
+        metricSeasonPolicy: 'FINAL_COLLEGE_SEASON',
+        hitMissRequiresSourceBackedMetric: true,
+        derivedEstimatesExcludedFromHitMiss: true,
+        thresholds: {
+          yprr: '>= 3.00',
+          pffOverallGrade: '>= 83.0',
+          contestedCatchRate: '>= 50.0',
+          behindLosTargetRate: '< 18.0'
+        }
+      },
       toggles: {
         competition: filters.enableCompetitionDiscount,
         injuryAvailability: filters.enableInjuryAvailabilityAdjustment,

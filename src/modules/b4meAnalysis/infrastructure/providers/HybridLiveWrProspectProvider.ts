@@ -261,8 +261,9 @@ export class HybridLiveWrProspectProvider implements ILiveWrProspectProvider {
     }
 
     const normalizedSearch = normalizeName(playerName);
+    const metricSeasonYear = draftYear - 1;
     const espnIdentity = await this.findEspnIdentity(normalizedSearch);
-    const seasonRows = await this.fetchBestCfbdSeasonStats(playerName, draftYear);
+    const seasonRows = await this.fetchBestCfbdSeasonStats(playerName, metricSeasonYear);
 
     if (seasonRows.length === 0) {
       return null;
@@ -272,13 +273,13 @@ export class HybridLiveWrProspectProvider implements ILiveWrProspectProvider {
     const nameParts = this.splitName(resolvedName);
     const teamName = seasonRows[0].team ?? espnIdentity?.team?.displayName ?? null;
 
-    const gameRows = await this.fetchCfbdGameStats(resolvedName, draftYear);
+    const gameRows = await this.fetchCfbdGameStats(resolvedName, metricSeasonYear);
     const gamesPlayed = countGamesPlayedFromReceivingLogs(gameRows);
 
     const injurySummary = await this.fetchConfirmedInjuryAbsences(
       resolvedName,
       teamName,
-      draftYear
+      metricSeasonYear
     );
 
     const receptions = getStat(seasonRows, 'REC');
@@ -331,7 +332,13 @@ export class HybridLiveWrProspectProvider implements ILiveWrProspectProvider {
         resolvedPlayerName: resolvedName,
         draftYear,
         sourcesUsed,
+        observedFields: [
+          'receptions',
+          'targets',
+          'gamesPlayed'
+        ],
         derivedFields: [
+          'yprr',
           'pffOverallGrade',
           'contestedCatchRate',
           'behindLosTargetRate',
@@ -348,8 +355,13 @@ export class HybridLiveWrProspectProvider implements ILiveWrProspectProvider {
           'boundaryRate',
           'routesRun'
         ],
+        metricSeasonYear,
+        seasonSelectionPolicy: 'FINAL_COLLEGE_SEASON',
         injuryMissedGamesIsConfirmedOnly: true,
-        notes: injurySummary.injuryNotes
+        notes: [
+          `Metrics selected from the final college season (${metricSeasonYear}) for the ${draftYear} draft class.`,
+          ...injurySummary.injuryNotes
+        ]
       },
       metrics: {
         yprr,

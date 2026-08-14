@@ -3,22 +3,31 @@ import type { IProspectWriteRepository } from '../../domain/repositories/IProspe
 import type { IB4MeWrMetricsWriteRepository } from '../../domain/repositories/IB4MeWrMetricsWriteRepository';
 import type { WrProspectRecord } from '../../domain/contracts/WrFramework.types';
 import { logger } from '@/utils/Logger';
+import type { IProspectIdentityRepository } from '@/modules/prospectIdentity/domain/IProspectIdentityRepository';
+import { normalizeProspectName, scoreProviderNameMatch } from '@/modules/prospectIdentity/application/ProspectDuplicateScoringService';
 
 export class LiveWrProspectIntakeService {
   public constructor(
     private readonly liveProvider: ILiveWrProspectProvider,
     private readonly prospectWriteRepository: IProspectWriteRepository,
-    private readonly wrMetricsWriteRepository: IB4MeWrMetricsWriteRepository
+    private readonly wrMetricsWriteRepository: IB4MeWrMetricsWriteRepository,
+    private readonly identityRepository: IProspectIdentityRepository
   ) {}
 
   public async getOrCreateFromLiveSource(
     playerName: string,
-    draftYear: number | null
+    draftYear: number | null,
+    requestedProspectId: number | null = null
   ): Promise<WrProspectRecord | null> {
     logger.debug('[LiveWrProspectIntakeService] start', {
       playerName,
       draftYear
     });
+
+    if (requestedProspectId !== null && await this.identityRepository.hasOpenIdentityIssue(requestedProspectId)) {
+      logger.debug('[LiveWrProspectIntakeService] skipped: unresolved identity review', { prospectId: requestedProspectId });
+      return null;
+    }
 
     const livePayload = await this.liveProvider.findByPlayerName(playerName, draftYear);
 
@@ -35,24 +44,34 @@ export class LiveWrProspectIntakeService {
       return null;
     }
 
-    const prospect = await this.prospectWriteRepository.upsertWideReceiverFromLivePayload(
-      livePayload
-    );
+    const requestedNormalized = normalizeProspectName(playerName);
+    const resolvedNormalized = normalizeProspectName(livePayload.playerName);
+    const confidenceScore = scoreProviderNameMatch(playerName, livePayload.playerName);
 
-    logger.debug('[LiveWrProspectIntakeService] prospect upserted', {
-      requestedPlayerName: playerName,
-      resolvedPlayerName: prospect.playerName,
-      prospectId: prospect.id,
-      draftYear: prospect.draftYear
-    });
+    if (requestedNormalized !== resolvedNormalized) {
+      await this.identityRepository.createIdentityReview({
+        prospectId: requestedProspectId,
+        provider: livePayload.sourceMetadata.provider,
+        requestedName: playerName,
+        resolvedName: livePayload.playerName,
+        confidenceScore,
+        reason: 'LOW_CONFIDENCE_PROVIDER_MATCH',
+        providerPayloadJson: livePayload as unknown as import('@prisma/client').Prisma.InputJsonValue,
+      });
+      logger.warn('[LiveWrProspectIntakeService] provider identity mismatch; hydration skipped', {
+        requestedProspectId, requestedPlayerName: playerName, resolvedPlayerName: livePayload.playerName, confidenceScore,
+      });
+      return null;
+    }
 
+    if (requestedProspectId !== null) {
+      await this.wrMetricsWriteRepository.upsertFromLivePayload(requestedProspectId, livePayload);
+      logger.debug('[LiveWrProspectIntakeService] metrics written to requested Prospect only', { prospectId: requestedProspectId, playerName });
+      return { id: requestedProspectId, playerName, school: livePayload.school, draftYear, position: 'WR' };
+    }
+
+    const prospect = await this.prospectWriteRepository.upsertWideReceiverFromLivePayload(livePayload);
     await this.wrMetricsWriteRepository.upsertFromLivePayload(prospect.id, livePayload);
-
-    logger.debug('[LiveWrProspectIntakeService] metrics upsert complete', {
-      prospectId: prospect.id,
-      playerName: prospect.playerName
-    });
-
     return prospect;
   }
 }
