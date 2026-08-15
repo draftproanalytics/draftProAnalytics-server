@@ -9,7 +9,11 @@ export interface PaginationParams {
     | 'state'
     | 'conference'
     | 'division'
-    | 'stadium';
+    | 'stadium'
+    | 'firstName'
+    | 'lastName'
+    | 'position'
+    | 'university';
   sortOrder?: 1 | -1;
 }
 

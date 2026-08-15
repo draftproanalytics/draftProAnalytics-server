@@ -42,9 +42,14 @@ export const PlayerFiltersDtoSchema = z.object({
 });
 
 export const PaginationDtoSchema = z.object({
-  page: z.coerce.number().optional().default(1),      // ← Add .coerce
-  limit: z.coerce.number().optional().default(10),    // ← Add .coerce  
-  include: z.string().optional(),    
+  page: z.coerce.number().optional().default(1),
+  limit: z.coerce.number().optional().default(10),
+  include: z.string().optional(),
+  sortField: z.enum(['firstName', 'lastName', 'position', 'university']).optional(),
+  sortOrder: z.preprocess(
+    (value) => value === undefined ? undefined : Number(value),
+    z.union([z.literal(1), z.literal(-1)]).optional(),
+  ),
 });
 
 // DTO type exports

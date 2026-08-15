@@ -1,7 +1,7 @@
 // src/infrastructure/repositories/PrismaPlayerRepository.ts
 import { IPlayerRepository, PlayerFilters } from '@/domain/player/repositories/IPlayerRepository';
 import { Player } from '@/domain/player/entities/Player';
-import { PlayerTeam } from '@prisma/client';
+import { PlayerTeam, Prisma } from '@prisma/client';
 import { PaginationParams, PaginatedResponse } from '@/shared/types/common';
 import { NotFoundError } from '@/shared/errors/AppError';
 import { prisma } from '../database/prisma';
@@ -57,13 +57,21 @@ export class PrismaPlayerRepository implements IPlayerRepository {
     const skip = (page - 1) * limit;
 
     const where = this.buildWhereClause(filters);
+    const sortField = pagination?.sortField;
+    const sortDirection: Prisma.SortOrder = pagination?.sortOrder === -1 ? 'desc' : 'asc';
+    const isPlayerSortField = (value: typeof sortField): value is 'firstName' | 'lastName' | 'position' | 'university' =>
+      value === 'firstName' || value === 'lastName' || value === 'position' || value === 'university';
+
+    const orderBy: Prisma.PlayerOrderByWithRelationInput[] = isPlayerSortField(sortField)
+      ? [{ [sortField]: sortDirection }, { id: 'asc' }]
+      : [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }];
 
     const [players, total] = await Promise.all([
       prisma.player.findMany({
         where,
         skip,
         take: limit,
-        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+        orderBy,
         select: this.playerSelect,
       }),
       prisma.player.count({ where }),
@@ -476,12 +484,15 @@ export class PrismaPlayerRepository implements IPlayerRepository {
     }
 
     if (filters.search) {
-      where.OR = [
-        { firstName: { contains: filters.search } },
-        { lastName: { contains: filters.search } },
-        { university: { contains: filters.search } },
-        { position: { contains: filters.search } },
-      ];
+      const terms = filters.search.trim().split(/\s+/).filter(Boolean);
+      if (terms.length > 0) {
+        where.AND = terms.map((term) => ({
+          OR: [
+            { firstName: { contains: term } },
+            { lastName: { contains: term } },
+          ],
+        }));
+      }
     }
 
     return where;

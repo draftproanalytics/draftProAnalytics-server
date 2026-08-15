@@ -346,6 +346,10 @@ playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
 
     const game = gameByDatabaseId ?? gameByEspnEventId;
 
+    if (!game) {
+      return res.status(404).json({ success: false, message: `Game ${requestedId} was not found` });
+    }
+
     const localTeamSummary = (
       team: { id: number; name: string; city: string | null; abbreviation: string | null },
       score: number | null,
@@ -362,10 +366,6 @@ playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
     });
 
     const localResponse = () => {
-      if (!game) {
-        return res.status(404).json({ success: false, message: `Game ${requestedId} was not found` });
-      }
-
       const seasonYear = Number(game.seasonYear);
       const awayTeam = localTeamSummary(game.awayTeam, game.awayScore, game.homeScore);
       const homeTeam = localTeamSummary(game.homeTeam, game.homeScore, game.awayScore);
@@ -395,32 +395,19 @@ playoffGameDetailsRouter.get('/:gameId/details', async (req, res) => {
       });
     };
 
-    // A caller can supply either our local Game.id or ESPN's event id. Upcoming
-    // Schedule is live-provider-backed, so an ESPN event may legitimately have no
-    // local Game row yet. In that case, use the requested id directly with ESPN.
-    if (game && !game.espnEventId) {
+    if (!game.espnEventId) {
       return localResponse();
     }
 
-    const espnEventId = game?.espnEventId?.trim() || requestedId;
+    const espnEventId = game.espnEventId;
 
     const response = await fetch(
       `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(espnEventId)}`,
       { headers: { Accept: 'application/json' } }
     );
     if (!response.ok) {
-      if (game) {
-        console.warn(`[game-details] ESPN summary unavailable for event ${espnEventId} (${response.status}); using local game data`);
-        return localResponse();
-      }
-
-      const status = response.status === 404 ? 404 : 502;
-      return res.status(status).json({
-        success: false,
-        message: response.status === 404
-          ? `Game ${requestedId} was not found`
-          : `ESPN summary unavailable for event ${espnEventId}`,
-      });
+      console.warn(`[game-details] ESPN summary unavailable for event ${espnEventId} (${response.status}); using local game data`);
+      return localResponse();
     }
 
     const payload: unknown = await response.json();
