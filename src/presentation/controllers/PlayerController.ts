@@ -110,6 +110,8 @@ export class PlayerController {
       const pagination: PaginationDto = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
         limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        sortField: req.query.sortField as PaginationDto['sortField'],
+        sortOrder: req.query.sortOrder ? Number(req.query.sortOrder) as 1 | -1 : undefined,
       };
 
       const players = await this.playerService.getAllPlayers(filters, pagination);
