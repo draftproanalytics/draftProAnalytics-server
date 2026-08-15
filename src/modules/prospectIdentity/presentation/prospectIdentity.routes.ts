@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { requireAuth } from '@/modules/auth/presentation/http/middleware/requireAuth.middleware';
 import { requireRbacEditOrAdminRole4 } from '@/modules/accessControl/presentation/security/requireRbacEditOrAdminRole4';
+import { requirePermission } from '@/modules/accessControl/presentation/security/requirePermission';
 import { PrismaProspectIdentityRepository } from '../infrastructure/PrismaProspectIdentityRepository';
 import { ProspectIdentityService } from '../application/ProspectIdentityService';
 import { ProspectIdentityController } from './ProspectIdentityController';
@@ -14,8 +15,8 @@ export const createProspectIdentityRouter = (prisma: PrismaClient): Router => {
   const controller = new ProspectIdentityController(new ProspectIdentityService(repository));
   const enqueueDuplicateScan = new EnqueueDetectProspectDuplicatesJobUseCase(new PrismaJobQueueRepository(prisma));
   router.use(requireAuth);
+  router.get('/preflight', requirePermission(prisma, 'B4ME_ANALYSIS', 'RUN'), controller.preflight);
   router.use(requireRbacEditOrAdminRole4);
-  router.get('/preflight', controller.preflight);
   router.get('/duplicates', controller.listDuplicates);
   router.post('/duplicates/detect', controller.detectDuplicates);
   router.post('/duplicates/detect-job', async (req, res, next) => {

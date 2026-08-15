@@ -166,7 +166,7 @@ export const createDpaJobsNflImportRouter = (prisma: PrismaClient): Router => {
   router.post('/imports/postseason-results/sync', controller.enqueueSyncPostSeasonResults);
   router.post('/team-needs/generate', controller.enqueueGenerateTeamNeeds);
   router.post('/imports/nflverse-player-production', controller.enqueueImportNflversePlayerProduction);
-  router.post('/b4me-wr-evaluation', requireAuth, requirePermission(prisma, 'SCOUTING', 'EDIT'), controller.enqueueEvaluateB4MeWrProspects);
+  router.post('/b4me-wr-evaluation', requireAuth, requirePermission(prisma, 'B4ME_ANALYSIS', 'RUN'), controller.enqueueEvaluateB4MeWrProspects);
   router.post('/queue/process', controller.processQueue);
   router.post('/:jobId/cancel', controller.cancelJob);
 
