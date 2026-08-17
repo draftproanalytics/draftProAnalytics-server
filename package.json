@@ -1,11 +1,11 @@
 {
   "name": "sports_mgmt_app-server",
   "version": "1.0.0",
-  "description": "DraftProAnalytics\u2122 REST API server",
+  "description": "DraftProAnalytics™ REST API server",
   "main": "dist/index.js",
   "scripts": {
     "clean": "rimraf dist",
-    "build": "tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json && echo \"\u2705 build ok\" && ls -la dist | head",
+    "build": "tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json && echo \"✅ build ok\" && ls -la dist | head",
     "start": "node dist/index.js",
     "dev:orig": "ts-node src/index.ts",
     "dev": "NODE_ENV=development nodemon --exec ts-node -r tsconfig-paths/register -P tsconfig.server.json src/index.ts",
@@ -37,6 +37,7 @@
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.2.0",
     "@sendgrid/mail": "^8.1.6",
+    "@sentry/node": "^10.70.0",
     "apple-signin-auth": "^2.0.0",
     "argon2": "^0.44.0",
     "axios": "^1.11.0",
