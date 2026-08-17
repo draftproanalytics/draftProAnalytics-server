@@ -10,7 +10,6 @@ export class MailerSendMailService implements MailService {
   constructor(apiKey?: string) {
     // 1. Fallback to process.env if no key was passed or if it's an empty string
     const finalApiKey = apiKey?.trim() || process.env.MAILERSEND_API_KEY;
-    this.logger.info('mailer api key = '+process.env.MAILERSEND_API_KEYApiKey);
 
     // 2. Validate that we actually have a usable key
     if (!finalApiKey || finalApiKey.trim().length === 0) {

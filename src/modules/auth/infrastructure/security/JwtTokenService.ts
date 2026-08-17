@@ -1,7 +1,6 @@
-
-import jwt from "jsonwebtoken";
-import type { AuthUser } from "@/shared/presentation/http/authUser";
-import { createLogger } from "@/utils/Logger";
+import jwt from 'jsonwebtoken';
+import type { AuthUser } from '@/shared/presentation/http/authUser';
+import { createLogger } from '@/utils/Logger';
 
 /**
  * Access token claims:
@@ -25,10 +24,10 @@ export interface Tokens {
   accessExpiresInSec: number;
   refreshExpiresInSec: number;
 }
-const logger = createLogger("JwtTokenService")
+const logger = createLogger('JwtTokenService');
 function toNumber(v: unknown): number | null {
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string") {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string') {
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   }
@@ -36,12 +35,11 @@ function toNumber(v: unknown): number | null {
 }
 
 function toStringNonEmpty(v: unknown): string | null {
-  if (typeof v === "string" && v.trim().length > 0) return v.trim();
+  if (typeof v === 'string' && v.trim().length > 0) return v.trim();
   return null;
 }
 
 export class JwtTokenService {
-
   private readonly accessSecret: string;
   private readonly refreshSecret: string;
 
@@ -52,9 +50,9 @@ export class JwtTokenService {
     const access = process.env.JWT_ACCESS_SECRET;
     const refresh = process.env.JWT_REFRESH_SECRET;
 
-    console.log('[JwtTokenService] JWT_ACCESS_SECRET =', process.env.JWT_ACCESS_SECRET);
-    if (!access || access.trim().length === 0) throw new Error("Missing JWT_ACCESS_SECRET");
-    if (!refresh || refresh.trim().length === 0) throw new Error("Missing JWT_REFRESH_SECRET");
+    console.log('JWT_ACCESS_SECRET configured =', Boolean(process.env.JWT_ACCESS_SECRET));
+    if (!access || access.trim().length === 0) throw new Error('Missing JWT_ACCESS_SECRET');
+    if (!refresh || refresh.trim().length === 0) throw new Error('Missing JWT_REFRESH_SECRET');
 
     this.accessSecret = access;
     this.refreshSecret = refresh;
@@ -79,15 +77,15 @@ export class JwtTokenService {
       tokenVersion,
     };
 
-    const accessToken = jwt.sign(accessClaims, this.accessSecret, {      
+    const accessToken = jwt.sign(accessClaims, this.accessSecret, {
       expiresIn: this.accessExpiresInSec,
     });
 
     const refreshToken = jwt.sign(refreshClaims, this.refreshSecret, {
       expiresIn: this.refreshExpiresInSec,
     });
-    logger.debug("issueToken - refreshToken: ", JSON.stringify(refreshToken,null,2));
-    logger.debug("issueToken - accessToken: ", JSON.stringify(accessToken,null,2));
+    logger.debug('issueToken - refreshToken: ', JSON.stringify(refreshToken, null, 2));
+    logger.debug('issueToken - accessToken: ', JSON.stringify(accessToken, null, 2));
     return {
       accessToken,
       refreshToken,
@@ -102,9 +100,9 @@ export class JwtTokenService {
    */
   public verifyAccessToken(token: string): AuthUser {
     const decoded = jwt.verify(token, this.accessSecret) as unknown;
-    logger.debug("verifyAccessToken - decoded: ", JSON.stringify(decoded,null,2));
-    logger.debug("verifyAccessToken - incomingToken: ", token);
-    if (!decoded || typeof decoded !== "object") throw new Error("Invalid access token");
+    logger.debug('verifyAccessToken - decoded: ', JSON.stringify(decoded, null, 2));
+    logger.debug('verifyAccessToken - incomingToken: ', token);
+    if (!decoded || typeof decoded !== 'object') throw new Error('Invalid access token');
 
     const o = decoded as Record<string, unknown>;
 
@@ -116,7 +114,7 @@ export class JwtTokenService {
       toNumber(o.id) ??
       toNumber(o.userId);
 
-    if (!personId) throw new Error("Invalid access token claims");
+    if (!personId) throw new Error('Invalid access token claims');
 
     const userName = toStringNonEmpty(o.userName) ?? undefined;
 
@@ -128,17 +126,17 @@ export class JwtTokenService {
 
   public verifyRefreshToken(token: string): RefreshTokenClaims {
     const decoded = jwt.verify(token, this.refreshSecret) as unknown;
-    logger.debug("verifyRefreshToken - decoded: ", JSON.stringify(decoded,null,2));
-    logger.debug("verifyRefreshToken - incomingToken: ", token);
-    if (!decoded || typeof decoded !== "object") throw new Error("Invalid refresh token");
+    logger.debug('verifyRefreshToken - decoded: ', JSON.stringify(decoded, null, 2));
+    logger.debug('verifyRefreshToken - incomingToken: ', token);
+    if (!decoded || typeof decoded !== 'object') throw new Error('Invalid refresh token');
 
     const o = decoded as Record<string, unknown>;
 
     const sub = toStringNonEmpty(o.sub) ?? toStringNonEmpty(o.personId) ?? null;
     const tokenVersion = toNumber(o.tokenVersion);
 
-    if (!sub) throw new Error("Invalid refresh token claims");
-    if (!tokenVersion) throw new Error("Invalid refresh token claims");
+    if (!sub) throw new Error('Invalid refresh token claims');
+    if (!tokenVersion) throw new Error('Invalid refresh token claims');
 
     return { sub, tokenVersion };
   }
