@@ -4,6 +4,7 @@ build/
 coverage/
 .env
 .env.*
+# .env.* also ignores generated .env.release
 !.env.example
 !.env.development.example
 .DS_Store

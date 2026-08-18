@@ -1,5 +1,6 @@
 // src/config/env.ts
 //process.env.NODE_ENV ??= 'development';
+import dotenv from 'dotenv';
 import dotenvFlow from 'dotenv-flow';
 import * as env from 'env-var';
 
@@ -11,7 +12,7 @@ import * as env from 'env-var';
   const nodeEnv = process.env.NODE_ENV?.trim();
   const resolved = (appEnv ?? nodeEnv ?? 'development')
     .replace(/^prod$/, 'production')
-    .replace(/^staging$/, 'stage');
+    .replace(/^stage$/, 'staging');
   process.env.APP_ENV = resolved;
   process.env.NODE_ENV = resolved;
 })();
@@ -20,6 +21,14 @@ import * as env from 'env-var';
  * Load .env.* with dotenv-flow
  */
 dotenvFlow.config({ silent: true });
+
+// Generated at build/dev startup from package.json version + current Git SHA.
+// Load after dotenv-flow so the generated release value wins over any stale
+// SENTRY_RELEASE value that may exist in another .env file.
+dotenv.config({
+  path: '.env.release',
+  override: true,
+});
 
 /* ===================== helpers ===================== */
 const toList = (s?: string | null) =>
@@ -35,19 +44,19 @@ const ensurePath = (s: string) =>
   s.startsWith('/') ? s : `/${s}`;
 
 /* ===================== config ===================== */
-export type AppEnv = 'development' | 'stage' | 'production';
+export type AppEnv = 'development' | 'staging' | 'production';
 
 export const CONFIG = {
   // App identity
   appName:  env.get('APP_NAME').default('SportsMgmt API').asString(),
-  appEnv:   env.get('APP_ENV').default(process.env.NODE_ENV!).asEnum<AppEnv>(['development', 'stage', 'production']),
+  appEnv:   env.get('APP_ENV').default(process.env.NODE_ENV!).asEnum<AppEnv>(['development', 'staging', 'production']),
   nodeEnv:  env.get('NODE_ENV').default('development').asString(),
 
   // Server
   port:     env.get('PORT').default('5000').asPortNumber(),
   logLevel: env.get('LOG_LEVEL').default('info').asString(),
 
-  /**
+  /** 
    * API base mount path (what your Express attaches to).
    * Keep this in ONE place so Nginx, client, and server agree.
    *
