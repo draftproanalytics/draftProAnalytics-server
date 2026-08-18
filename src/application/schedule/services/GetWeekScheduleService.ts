@@ -8,10 +8,21 @@ export class GetWeekScheduleService {
   async execute(
     year: number,
     seasonType: number,
-    week: number
+    week: number | null
   ): Promise<WeekScheduleDTO> {
-    if (seasonType === 1 && week === 0) {
+    if (seasonType === 1 && week === null) {
       return this.getAllPreseasonGames(year);
+    }
+
+    if (week === null) {
+      throw new Error('Week is required for regular season and postseason');
+    }
+
+    if (seasonType === 1) {
+      // Upcoming Games uses DPA-facing numbering (0=HOF, 1..3=preseason weeks).
+      // ESPN uses source buckets 1=HOF, 2..4=preseason weeks.
+      const result = await this.scheduleClient.getWeekEvents(year, seasonType, week + 1);
+      return { ...result, week };
     }
 
     return this.scheduleClient.getWeekEvents(year, seasonType, week);

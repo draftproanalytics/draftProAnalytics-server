@@ -59,12 +59,21 @@ export const parseImportNflGameScoresPayload = (
 ): ImportNflGameScoresPayloadDto => {
   const request = asRecord(body);
   const seasonYear = parsePositiveInteger(request.seasonYear, 'seasonYear');
-  const week = parsePositiveInteger(request.week, 'week');
 
   if (typeof request.seasonType !== 'number' || !isNflSeasonType(request.seasonType)) {
     throw new Error('seasonType must be 1, 2, or 3.');
   }
 
+  if (typeof request.week !== 'number' || !Number.isInteger(request.week)) {
+    throw new Error('week must be an integer.');
+  }
+
+  const minimumWeek = request.seasonType === 1 ? 0 : 1;
+  if (request.week < minimumWeek) {
+    throw new Error(`week must be at least ${minimumWeek} for the selected season type.`);
+  }
+
+  const week = request.week;
   const requestedByPersonId =
     typeof request.requestedByPersonId === 'number' && Number.isInteger(request.requestedByPersonId)
       ? request.requestedByPersonId

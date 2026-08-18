@@ -4,6 +4,7 @@ import { fetchWeekEvents } from '@/espn/espnClient'
 import { mapEspnEventToGame } from '@/espn/mappers/espnEventMapper'
 import { IGameRepository } from '@/domain/game/repositories/IGameRepository'
 import { ITeamRepository } from '@/domain/team/repositories/ITeamRepository'
+import { NflSeasonType, toNflProviderWeek } from '@/modules/jobs/domain/value-objects/NflSeasonType'
 
 export class SyncWeekEventsService {
   constructor(
@@ -12,7 +13,8 @@ export class SyncWeekEventsService {
   ) {}
 
   async sync(year: number, seasonType: number, week: number) {
-    const raw = await fetchWeekEvents(year, seasonType, week)
+    const providerWeek = toNflProviderWeek(seasonType as NflSeasonType, week)
+    const raw = await fetchWeekEvents(year, seasonType, providerWeek)
     if (!raw || !raw.items) return []
 
     const createdOrUpdated = []

@@ -5,6 +5,7 @@ import { prisma } from "@/infrastructure/database/prisma";
 import { PrismaGameRepository } from '@/infrastructure/repositories/PrismaGameRepository';
 import { Game_gameStatus } from '@prisma/client';
 import { DebugLogger } from '@/infrastructure/logging/DebugLogger';
+import { NflSeasonType, toNflProviderWeek } from '@/modules/jobs/domain/value-objects/NflSeasonType';
 
 export interface ScoreboardSyncResult {
   processed: number;
@@ -52,10 +53,11 @@ export class ScoreboardSyncService {
       `🏈 [ScoreboardSync] Updating scores for ${normalizedYear} type ${seasonType} week ${week}`
     );
 
+    const providerWeek = toNflProviderWeek(seasonType as NflSeasonType, week);
     const data = await fetchScoreboard({
       year: Number(normalizedYear),
       seasonType,
-      week,
+      week: providerWeek,
     });
 
     let processed = 0;

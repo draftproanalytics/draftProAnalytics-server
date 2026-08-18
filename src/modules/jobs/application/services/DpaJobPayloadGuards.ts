@@ -56,7 +56,12 @@ export const readImportNflGameScoresPayload = (
     throw new Error('Job payload has an invalid seasonType.');
   }
 
-  if (typeof record.week !== 'number' || !Number.isInteger(record.week) || record.week <= 0) {
+  if (typeof record.week !== 'number' || !Number.isInteger(record.week)) {
+    throw new Error('Job payload has an invalid week.');
+  }
+
+  const minimumWeek = record.seasonType === 1 ? 0 : 1;
+  if (record.week < minimumWeek) {
     throw new Error('Job payload has an invalid week.');
   }
 

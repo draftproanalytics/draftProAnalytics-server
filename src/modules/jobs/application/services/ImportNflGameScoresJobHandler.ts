@@ -5,6 +5,7 @@ import type { IGameScheduleRepository } from '../../domain/repositories/IGameSch
 import type { IJobQueueRepository } from '../../domain/repositories/IJobQueueRepository';
 import type { INflScheduleProvider } from '../../domain/services/INflScheduleProvider';
 import { readImportNflGameScoresPayload } from './DpaJobPayloadGuards';
+import { toNflProviderWeek } from '../../domain/value-objects/NflSeasonType';
 
 export class ImportNflGameScoresJobHandler {
   public constructor(
@@ -35,7 +36,7 @@ export class ImportNflGameScoresJobHandler {
     const events = await this.nflScheduleProvider.fetchWeekEvents({
       seasonYear: payload.seasonYear,
       seasonType: payload.seasonType,
-      week: payload.week,
+      week: toNflProviderWeek(payload.seasonType, payload.week),
     });
 
     const result = await this.gameScheduleRepository.upsertImportedGames(events);
