@@ -3,6 +3,7 @@ import type {
   FetchNflWeekEventsQuery,
   INflScheduleProvider,
 } from '../../domain/services/INflScheduleProvider';
+import { normalizeNflWeekForPersistence } from '../../domain/value-objects/NflSeasonType';
 
 interface EspnScoreboardResponse {
   readonly events?: readonly EspnEvent[];
@@ -138,7 +139,7 @@ export class EspnNflScheduleProvider implements INflScheduleProvider {
       espnCompetitionId: competition.id,
       seasonYear: query.seasonYear,
       seasonType: query.seasonType,
-      week: event.week?.number ?? query.week,
+      week: normalizeNflWeekForPersistence(query.seasonType, event.week?.number ?? query.week),
       gameDate: eventDate && Number.isNaN(eventDate.getTime()) ? null : eventDate,
       status: mapStatus(event),
       isPlayoff: query.seasonType === 3,

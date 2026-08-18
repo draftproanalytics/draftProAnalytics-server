@@ -207,13 +207,16 @@ router.get('/upcomingSchedule', async (req, res) => {
   try {
     const year = Number(req.query.seasonYear);
     const seasonType = Number(req.query.seasonType);
-    const week = Number(req.query.week);
+    const rawWeek = req.query.week;
+    const week = rawWeek === undefined ? null : Number(rawWeek);
 
     console.log('➡️ Incoming params:', { year, seasonType, week, raw: req.query });
 
-    const isAllPreseasonRequest = seasonType === 1 && week === 0;
+    const isAllPreseasonRequest = seasonType === 1 && week === null;
+    const isValidPreseasonWeek = seasonType === 1 && week !== null && Number.isInteger(week) && week >= 0 && week <= 3;
+    const isValidStandardWeek = seasonType !== 1 && week !== null && Number.isInteger(week) && week >= 1;
 
-    if (!year || !seasonType || (!isAllPreseasonRequest && week < 1)) {
+    if (!year || !seasonType || (!isAllPreseasonRequest && !isValidPreseasonWeek && !isValidStandardWeek)) {
       return res.status(400).json({
         success: false,
         message: 'Missing or invalid year, seasonType, or week',

@@ -97,8 +97,19 @@ export class EspnScheduleClient {
           // Winner flags
           const homeWinner = homeRaw?.winner === true;
           const awayWinner = awayRaw?.winner === true;
-          // Status
+
+          // Fetch the ESPN game summary once. The summary/header status is more
+          // authoritative for completed games than the Core API event object and
+          // correctly reports tied games as Final.
+          const summary = await this.fetchEventSummary(eventId);
+          const summaryStatusType = summary?.header?.competitions?.[0]?.status?.type;
+
+          // Status: prefer the summary endpoint, then fall back to Core API data.
           const rawStatus =
+            summaryStatusType?.shortDetail ||
+            summaryStatusType?.detail ||
+            summaryStatusType?.description ||
+            summaryStatusType?.name ||
             comp?.status?.type?.shortDetail ||
             comp?.status?.type?.detail ||
             comp?.status?.type?.description ||
@@ -106,28 +117,39 @@ export class EspnScheduleClient {
             'Scheduled';
 
           // ESPN state: 'pre' | 'in' | 'post' | 'postponed' | etc.
-          const state: string = comp?.status?.type?.state ?? e?.status?.type?.state ?? 'pre';
+          const state: string =
+            summaryStatusType?.state ??
+            comp?.status?.type?.state ??
+            e?.status?.type?.state ??
+            'pre';
+          const isCompleted =
+            summaryStatusType?.completed === true ||
+            comp?.status?.type?.completed === true ||
+            e?.status?.type?.completed === true;
+          const statusFromDetail = normalizeStatus(rawStatus);
 
           let statusNormalized: GameStatus;
 
           // ---------------- Start status Normalization ------------------------------
-          // 1) Use ESPN state as primary truth
-          if (state === 'post' || state === 'completed') {
+          // Explicit completion/final indicators must win before score-based fallbacks.
+          // This is important for tied games, where neither competitor has winner=true.
+          if (isCompleted || state === 'post' || state === 'completed' || statusFromDetail === 'Final') {
             statusNormalized = 'Final';
-          } else if (state === 'in' || this.gameHasScores(homeScore) || this.gameHasScores(awayScore)) {
-            statusNormalized = 'In Progress';
-            // 👈 THIS is the key change: mark in-progress as soon as game is live,
-            // regardless of whether anyone has scored yet.
-            statusNormalized = 'In Progress';
-          } else if (state === 'postponed') {
+          } else if (state === 'postponed' || statusFromDetail === 'Postponed') {
             statusNormalized = 'Postponed';
+          } else if (
+            state === 'in' ||
+            statusFromDetail === 'In Progress' ||
+            this.gameHasScores(homeScore) ||
+            this.gameHasScores(awayScore)
+          ) {
+            // Score presence remains a fallback for live games whose ESPN state lags.
+            statusNormalized = 'In Progress';
           } else {
-            // 2) Fallback to string-based normalizer for odd cases
-            statusNormalized = normalizeStatus(rawStatus);
+            statusNormalized = statusFromDetail;
           }
 
-          // 3) Optional score-based override for edge cases
-          //    If ESPN missed 'post' but we clearly have a winner + non-zero score:
+          // Winner flags are a final fallback when ESPN has not yet switched the state.
           if (
             statusNormalized !== 'Final' &&
             (this.gameHasScores(homeScore) || this.gameHasScores(awayScore)) &&
@@ -155,7 +177,7 @@ export class EspnScheduleClient {
           let scoringPlays: ScoringPlayDTO[] = [];
 
           try {
-            const plays = await this.fetchScoringPlays(eventId);
+            const plays = this.extractScoringPlays(summary);
 
             scoringPlays = plays;
 
@@ -256,74 +278,78 @@ export class EspnScheduleClient {
     }
   }
   // ... inside class EspnScheduleClient { ... }
-  private async fetchScoringPlays(eventId: number): Promise<ScoringPlayDTO[]> {
+  private async fetchEventSummary(eventId: number): Promise<any | null> {
     const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${eventId}`;
 
     try {
       const { data } = await axios.get(url, { timeout: 15000 });
-
-      const rawPlays: any[] = Array.isArray(data?.scoringPlays) ? data.scoringPlays : [];
-
-      return rawPlays
-        .map((p: any): ScoringPlayDTO | null => {
-          const textRaw =
-            typeof p.text === 'string' && p.text.trim().length > 0
-              ? p.text
-              : typeof p.description === 'string'
-                ? p.description
-                : '';
-
-          const text = textRaw.trim();
-          if (!text) {
-            return null;
-          }
-
-          const period =
-            typeof p.period?.number === 'number'
-              ? p.period.number
-              : typeof p.period === 'number'
-                ? p.period
-                : 0;
-
-          const clockDisplay =
-            typeof p.clock?.displayValue === 'string'
-              ? p.clock.displayValue
-              : typeof p.clock === 'string'
-                ? p.clock
-                : '';
-
-          const homeScore =
-            typeof p.homeScore === 'number'
-              ? p.homeScore
-              : typeof p.homeTeamScore === 'number'
-                ? p.homeTeamScore
-                : null;
-
-          const awayScore =
-            typeof p.awayScore === 'number'
-              ? p.awayScore
-              : typeof p.awayTeamScore === 'number'
-                ? p.awayTeamScore
-                : null;
-
-          const type = (p.scoringType?.name ?? p.type ?? null) as string | null;
-
-          return {
-            id: Number(p.id ?? 0),
-            text,
-            period,
-            clockDisplay,
-            homeScore,
-            awayScore,
-            type,
-          };
-        })
-        .filter((p): p is ScoringPlayDTO => p !== null);
+      return data ?? null;
     } catch (err) {
-      console.warn(`[EspnScheduleClient] Failed to fetch scoring plays for event ${eventId}`, err);
-      return [];
+      console.warn(`[EspnScheduleClient] Failed to fetch summary for event ${eventId}`, err);
+      return null;
     }
   }
+
+  private extractScoringPlays(summary: any): ScoringPlayDTO[] {
+    const rawPlays: any[] = Array.isArray(summary?.scoringPlays) ? summary.scoringPlays : [];
+
+    return rawPlays
+      .map((p: any): ScoringPlayDTO | null => {
+        const textRaw =
+          typeof p.text === 'string' && p.text.trim().length > 0
+            ? p.text
+            : typeof p.description === 'string'
+              ? p.description
+              : '';
+
+        const text = textRaw.trim();
+        if (!text) {
+          return null;
+        }
+
+        const period =
+          typeof p.period?.number === 'number'
+            ? p.period.number
+            : typeof p.period === 'number'
+              ? p.period
+              : 0;
+
+        const clockDisplay =
+          typeof p.clock?.displayValue === 'string'
+            ? p.clock.displayValue
+            : typeof p.clock === 'string'
+              ? p.clock
+              : '';
+
+        const homeScore =
+          typeof p.homeScore === 'number'
+            ? p.homeScore
+            : typeof p.homeTeamScore === 'number'
+              ? p.homeTeamScore
+              : null;
+
+        const awayScore =
+          typeof p.awayScore === 'number'
+            ? p.awayScore
+            : typeof p.awayTeamScore === 'number'
+              ? p.awayTeamScore
+              : null;
+
+        const type = (p.scoringType?.name ?? p.type ?? null) as string | null;
+
+        return {
+          id: Number(p.id ?? 0),
+          text,
+          period,
+          clockDisplay,
+          homeScore,
+          awayScore,
+          type,
+        };
+      })
+      .filter((p): p is ScoringPlayDTO => p !== null);
+  }
+
   private readSeed(competitor: unknown): number | null {
   if (!competitor || typeof competitor !== 'object') return null
   const c = competitor as Record<string, unknown>
