@@ -5,10 +5,10 @@
   "main": "dist/index.js",
   "scripts": {
     "clean": "rimraf dist",
-    "build": "tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json && echo \"✅ build ok\" && ls -la dist | head",
+    "build": "npm run release:generate && tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json && echo \"✅ build ok\" && ls -la dist | head",
     "start": "node dist/index.js",
     "dev:orig": "ts-node src/index.ts",
-    "dev": "NODE_ENV=development nodemon --exec ts-node -r tsconfig-paths/register -P tsconfig.server.json src/index.ts",
+    "dev": "npm run release:generate && NODE_ENV=development nodemon --exec ts-node -r tsconfig-paths/register -P tsconfig.server.json src/index.ts",
     "dev:watch": "nodemon",
     "dev:once": "ts-node -r tsconfig-paths/register src/index.ts",
     "prod": "npm run build && node dist/index.js",
@@ -32,7 +32,8 @@
     "type-check": "tsc --noEmit",
     "cli:importWeek": "ts-node src/cli/importWeek.ts",
     "cli:backfillSeason": "ts-node src/cli/backfillSeason.ts",
-    "cli:syncTeams": "ts-node src/cli/syncTeams.ts"
+    "cli:syncTeams": "ts-node src/cli/syncTeams.ts",
+    "release:generate": "node scripts/generate-release.js"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.2.0",

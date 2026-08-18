@@ -1,0 +1,60 @@
+CREATE TABLE ProspectDuplicateReview (
+  id INT NOT NULL AUTO_INCREMENT,
+  leftProspectId INT NOT NULL,
+  rightProspectId INT NOT NULL,
+  matchScore INT NOT NULL,
+  matchReasonsJson JSON NOT NULL,
+  fingerprint VARCHAR(255) NOT NULL,
+  status VARCHAR(24) NOT NULL DEFAULT 'OPEN',
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  reviewedAt DATETIME NULL,
+  reviewedByPersonId INT NULL,
+  resolution VARCHAR(32) NULL,
+  resolutionNotes TEXT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_ProspectDuplicateReview_pair (leftProspectId, rightProspectId),
+  KEY idx_ProspectDuplicateReview_status_score (status, matchScore),
+  KEY idx_ProspectDuplicateReview_left (leftProspectId),
+  KEY idx_ProspectDuplicateReview_right (rightProspectId),
+  CONSTRAINT chk_ProspectDuplicateReview_pair_order CHECK (leftProspectId < rightProspectId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE ProspectIdentityReview (
+  id INT NOT NULL AUTO_INCREMENT,
+  prospectId INT NULL,
+  candidateProspectId INT NULL,
+  provider VARCHAR(64) NOT NULL,
+  requestedName VARCHAR(150) NOT NULL,
+  resolvedName VARCHAR(150) NULL,
+  confidenceScore INT NULL,
+  reason VARCHAR(64) NOT NULL,
+  providerPayloadJson JSON NULL,
+  status VARCHAR(24) NOT NULL DEFAULT 'OPEN',
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewedAt DATETIME NULL,
+  reviewedByPersonId INT NULL,
+  resolution VARCHAR(32) NULL,
+  notes TEXT NULL,
+  PRIMARY KEY (id),
+  KEY idx_ProspectIdentityReview_prospect_status (prospectId, status),
+  KEY idx_ProspectIdentityReview_status_created (status, createdAt)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE ProspectMergeAudit (
+  id INT NOT NULL AUTO_INCREMENT,
+  survivorProspectId INT NOT NULL,
+  duplicateProspectId INT NOT NULL,
+  mergePolicy VARCHAR(32) NOT NULL DEFAULT 'FILL_EMPTY_ONLY',
+  survivorBeforeJson JSON NOT NULL,
+  duplicateBeforeJson JSON NOT NULL,
+  fieldsCopiedJson JSON NOT NULL,
+  relationsMovedJson JSON NOT NULL,
+  conflictsJson JSON NOT NULL,
+  performedByPersonId INT NULL,
+  performedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reason TEXT NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_ProspectMergeAudit_survivor (survivorProspectId, performedAt),
+  KEY idx_ProspectMergeAudit_duplicate (duplicateProspectId, performedAt)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
