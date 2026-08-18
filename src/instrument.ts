@@ -11,6 +11,14 @@ if (enabled && dsn) {
     environment,
     release,
     sendDefaultPii: false,
+    attachStacktrace: true,
+
+    // Capture handled errors that DPA intentionally logs with console.error().
+    // Express errors, uncaught exceptions, and unhandled rejections remain
+    // covered by the SDK's normal Node/Express integrations.
+    integrations: [
+      Sentry.captureConsoleIntegration({ levels: ['error'] }),
+    ],
 
     beforeSend(event) {
       if (event.request) {
