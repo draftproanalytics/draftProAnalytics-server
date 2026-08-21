@@ -27,6 +27,7 @@ import { UtilityMapper } from '@/application/playoffs/mappers/UtilityMapper';
 import { TeamHelper } from '@/utils/TeamHelper';
 import { $Enums } from '@prisma/client';
 import { playoffGameDetailsRouter } from './playoffGameDetailsRoute';
+import { ViewerMarketService } from '@/application/schedule/services/ViewerMarketService';
 
 const playoffRoundOrder: PlayoffRound[] = [
   'WILDCARD',
@@ -48,6 +49,7 @@ const weekScheduleService = new GetWeekScheduleService(new EspnScheduleClient())
 const teamMetaRepo = new PrismaTeamMetaRepository(prisma);
 const statusMapper = new UtilityMapper();
 const teamHelper = new TeamHelper(prisma);
+const viewerMarketService = new ViewerMarketService();
 
 const roundFromWeek = (w: number): PlayoffRound | null => {
   if (w === 1) return 'WILDCARD';
@@ -228,6 +230,41 @@ router.get('/upcomingSchedule', async (req, res) => {
   } catch (err: any) {
     console.error('❌ /upcomingSchedule failed:', err);
     return res.status(500).json({ success: false, message: err.message, error: err.message });
+  }
+});
+
+router.get('/viewingMarket', async (req, res) => {
+  try {
+    const explicitIp = typeof req.query.ip === 'string' ? req.query.ip.trim() : '';
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const forwardedIp = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
+    const realIpHeader = req.headers['x-real-ip'];
+    const realIp = Array.isArray(realIpHeader) ? realIpHeader[0] : realIpHeader;
+    const rawIp = explicitIp || forwardedIp || realIp || req.ip || req.socket.remoteAddress || '';
+    console.info('[viewingMarket] request IP candidates', {
+      explicitIp: explicitIp || null,
+      forwardedIp: forwardedIp || null,
+      realIp: realIp || null,
+      expressIp: req.ip || null,
+      socketIp: req.socket.remoteAddress || null,
+      selectedIp: rawIp || null,
+    });
+
+    const location = await viewerMarketService.resolve(rawIp);
+    console.info('[viewingMarket] resolved location', location);
+    return res.json(location);
+  } catch (error: unknown) {
+    console.error('❌ /viewingMarket failed:', error);
+    return res.json({
+      available: false,
+      city: null,
+      region: null,
+      regionCode: null,
+      countryCode: null,
+      latitude: null,
+      longitude: null,
+      timezone: null,
+    });
   }
 });
 

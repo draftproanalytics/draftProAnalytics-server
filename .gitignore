@@ -2,9 +2,11 @@ node_modules/
 dist/
 build/
 coverage/
+doc-internal/
 .env
 .env.*
 # .env.* also ignores generated .env.release
 !.env.example
 !.env.development.example
-.DS_Store
+.DS_Storedoc-internal/
+doc-internal/
